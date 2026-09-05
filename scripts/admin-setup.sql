@@ -28,7 +28,9 @@ CREATE POLICY "Admin can read own profile"
 -- Service role has full access (used by the admin app's server-side routes)
 CREATE POLICY "Service role full access"
   ON public.admin_profiles FOR ALL
-  USING (true);
+  TO service_role
+  USING (true)
+  WITH CHECK (true);
 
 -- 4. Grant permissions
 GRANT SELECT ON public.admin_profiles TO authenticated;

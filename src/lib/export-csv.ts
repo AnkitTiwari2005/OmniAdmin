@@ -1,11 +1,18 @@
-﻿export function exportToCsv(
+export function exportToCsv(
   filename: string,
   headers: string[],
   rows: (string | number | boolean | null | undefined)[][]
 ) {
   const formatCell = (val: string | number | boolean | null | undefined): string => {
     if (val === null || val === undefined) return '""';
-    const str = String(val).replace(/"/g, '""');
+    let str = String(val);
+
+    // Neutralize spreadsheet formula injection (=, +, -, @, tab, carriage return)
+    if (str.length > 0 && ['=', '+', '-', '@', '\t', '\r'].includes(str[0])) {
+      str = "'" + str;
+    }
+
+    str = str.replace(/"/g, '""');
     return `"${str}"`;
   };
 

@@ -4,6 +4,12 @@ import { getShudhhamClient } from '@/lib/supabase/shudhham';
 import { requireWorkspaceAccess } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { logAdminActivity } from '@/lib/audit';
+import {
+  shudhhamProductSchema,
+  shudhhamOrderStatusSchema,
+  uuidSchema,
+} from '@/lib/validation/schemas';
+import { z } from 'zod';
 
 async function requireShudhham() {
   const admin = await requireWorkspaceAccess('shudhham');
@@ -27,13 +33,20 @@ export interface ShudhhamProductInput {
 }
 
 export async function createShudhhamProduct(input: ShudhhamProductInput) {
+  const parsed = shudhhamProductSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid product input' };
+  }
+
   const { db, admin } = await requireShudhham();
+  const valid = parsed.data;
+
   const { data, error } = await table(db, 'products').insert({
-    name: input.name,
-    description: input.description ?? null,
-    price: input.price,
-    category: input.category,
-    image_url: input.image_url ?? null,
+    name: valid.name,
+    description: valid.description ?? null,
+    price: valid.price,
+    category: valid.category,
+    image_url: valid.image_url ?? null,
   }).select().single();
 
   if (error) return { error: error.message };
@@ -46,7 +59,7 @@ export async function createShudhhamProduct(input: ShudhhamProductInput) {
     workspace: 'shudhham',
     targetTable: 'products',
     targetId: data?.id,
-    details: { name: input.name, price: input.price, category: input.category },
+    details: { name: valid.name, price: valid.price, category: valid.category },
   });
 
   revalidatePath('/shudhham/products');
@@ -54,8 +67,18 @@ export async function createShudhhamProduct(input: ShudhhamProductInput) {
 }
 
 export async function updateShudhhamProduct(id: string, input: Partial<ShudhhamProductInput>) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid product ID' };
+
+  const inputParsed = shudhhamProductSchema.partial().safeParse(input);
+  if (!inputParsed.success) {
+    return { error: inputParsed.error.issues[0]?.message || 'Invalid product input' };
+  }
+
   const { db, admin } = await requireShudhham();
-  const { error } = await table(db, 'products').update(input).eq('id', id);
+  const valid = inputParsed.data;
+
+  const { error } = await table(db, 'products').update(valid).eq('id', id);
   if (error) return { error: error.message };
 
   await logAdminActivity({
@@ -66,7 +89,7 @@ export async function updateShudhhamProduct(id: string, input: Partial<ShudhhamP
     workspace: 'shudhham',
     targetTable: 'products',
     targetId: id,
-    details: input,
+    details: valid,
   });
 
   revalidatePath('/shudhham/products');
@@ -74,6 +97,9 @@ export async function updateShudhhamProduct(id: string, input: Partial<ShudhhamP
 }
 
 export async function deleteShudhhamProduct(id: string) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid product ID' };
+
   const { db, admin } = await requireShudhham();
   const { error } = await table(db, 'products').delete().eq('id', id);
   if (error) return { error: error.message };
@@ -95,8 +121,13 @@ export async function deleteShudhhamProduct(id: string) {
 // ── Order status mutations ────────────────────────────────────
 
 export async function updateShudhhamOrderStatus(id: string, status: string) {
+  const parsed = shudhhamOrderStatusSchema.safeParse({ id, status });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid order status input' };
+  }
+
   const { db, admin } = await requireShudhham();
-  const { error } = await table(db, 'orders').update({ status }).eq('id', id);
+  const { error } = await table(db, 'orders').update({ status: parsed.data.status }).eq('id', id);
   if (error) return { error: error.message };
 
   await logAdminActivity({
@@ -107,7 +138,7 @@ export async function updateShudhhamOrderStatus(id: string, status: string) {
     workspace: 'shudhham',
     targetTable: 'orders',
     targetId: id,
-    details: { newStatus: status },
+    details: { newStatus: parsed.data.status },
   });
 
   revalidatePath('/shudhham/orders');
@@ -118,10 +149,18 @@ export async function bulkUpdateShudhhamProducts(
   ids: string[],
   patch: Partial<ShudhhamProductInput>
 ) {
+  const idsParsed = z.array(uuidSchema).min(1, 'At least one product must be selected').safeParse(ids);
+  if (!idsParsed.success) return { error: idsParsed.error.issues[0]?.message || 'Invalid product IDs' };
+
+  const patchParsed = shudhhamProductSchema.partial().safeParse(patch);
+  if (!patchParsed.success) return { error: patchParsed.error.issues[0]?.message || 'Invalid update payload' };
+
   const { db, admin } = await requireShudhham();
+  const validPatch = patchParsed.data;
+
   const { error } = await table(db, 'products')
-    .update(patch)
-    .in('id', ids);
+    .update(validPatch)
+    .in('id', idsParsed.data);
 
   if (error) return { error: error.message };
 
@@ -132,7 +171,7 @@ export async function bulkUpdateShudhhamProducts(
     action: 'bulk_update',
     workspace: 'shudhham',
     targetTable: 'products',
-    details: { count: ids.length, patch },
+    details: { count: ids.length, patch: validPatch },
   });
 
   revalidatePath('/shudhham/products');

@@ -1,4 +1,4 @@
-﻿'use server';
+'use server';
 
 import { createAdminServiceClient } from '@/lib/supabase/admin';
 import { requireSuperAdmin } from '@/lib/auth';
@@ -6,6 +6,12 @@ import type { AdminRole } from '@/lib/auth';
 import type { TeamMember } from './types';
 import { revalidatePath } from 'next/cache';
 import { logAdminActivity } from '@/lib/audit';
+import {
+  teamMemberInviteSchema,
+  teamMemberRoleSchema,
+  teamMemberToggleActiveSchema,
+  teamMemberRemoveSchema,
+} from '@/lib/validation/schemas';
 
 export async function getTeamMembers(): Promise<TeamMember[]> {
   await requireSuperAdmin();
@@ -46,14 +52,21 @@ export async function inviteAdminMember(input: {
   full_name: string;
   role: AdminRole;
 }) {
+  // 0. Validate input server-side with Zod
+  const parsed = teamMemberInviteSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid invite input' };
+  }
+
+  const valid = parsed.data;
   const currentAdmin = await requireSuperAdmin();
   const service = createAdminServiceClient();
 
   // 1. Send invite via Supabase Auth
   const { data: inviteData, error: inviteError } = await service.auth.admin.inviteUserByEmail(
-    input.email,
+    valid.email,
     {
-      data: { full_name: input.full_name },
+      data: { full_name: valid.full_name },
     }
   );
 
@@ -65,30 +78,41 @@ export async function inviteAdminMember(input: {
     return { error: 'Failed to create user during invite' };
   }
 
+  const newUserId = inviteData.user.id;
+
   // 2. Insert into admin_profiles
-  // Try inserting with email and is_active; if schema not migrated yet, fallback
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: profileError } = await (service as any)
     .from('admin_profiles')
     .insert({
-      id: inviteData.user.id,
-      full_name: input.full_name,
-      role: input.role,
-      email: input.email,
+      id: newUserId,
+      full_name: valid.full_name,
+      role: valid.role,
+      email: valid.email,
       is_active: true,
     });
 
   if (profileError) {
-    // Retry without extra columns if not migrated yet
-    const { error: retryError } = await (service as any)
-      .from('admin_profiles')
-      .insert({
-        id: inviteData.user.id,
-        full_name: input.full_name,
-        role: input.role,
-      });
+    // Check if error is specifically missing column (Postgres error 42703: undefined_column)
+    if (profileError.code === '42703') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const { error: retryError } = await (service as any)
+        .from('admin_profiles')
+        .insert({
+          id: newUserId,
+          full_name: valid.full_name,
+          role: valid.role,
+        });
 
-    if (retryError) {
-      return { error: retryError.message };
+      if (retryError) {
+        // Rollback orphaned auth user
+        await service.auth.admin.deleteUser(newUserId);
+        return { error: retryError.message };
+      }
+    } else {
+      // For any other failure (constraint, duplicate, permission), rollback orphaned auth user
+      await service.auth.admin.deleteUser(newUserId);
+      return { error: profileError.message };
     }
   }
 
@@ -100,8 +124,8 @@ export async function inviteAdminMember(input: {
     action: 'invite',
     workspace: 'admin',
     targetTable: 'admin_profiles',
-    targetId: inviteData.user.id,
-    details: { invitedEmail: input.email, role: input.role, name: input.full_name },
+    targetId: newUserId,
+    details: { invitedEmail: valid.email, role: valid.role, name: valid.full_name },
   });
 
   revalidatePath('/team');
@@ -109,13 +133,19 @@ export async function inviteAdminMember(input: {
 }
 
 export async function updateAdminMemberRole(id: string, role: AdminRole) {
+  const parsed = teamMemberRoleSchema.safeParse({ id, role });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid role or ID' };
+  }
+
   const currentAdmin = await requireSuperAdmin();
   const service = createAdminServiceClient();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (service as any)
     .from('admin_profiles')
-    .update({ role, updated_at: new Date().toISOString() })
-    .eq('id', id);
+    .update({ role: parsed.data.role, updated_at: new Date().toISOString() })
+    .eq('id', parsed.data.id);
 
   if (error) return { error: error.message };
 
@@ -126,8 +156,8 @@ export async function updateAdminMemberRole(id: string, role: AdminRole) {
     action: 'role_change',
     workspace: 'admin',
     targetTable: 'admin_profiles',
-    targetId: id,
-    details: { newRole: role },
+    targetId: parsed.data.id,
+    details: { newRole: parsed.data.role },
   });
 
   revalidatePath('/team');
@@ -135,19 +165,25 @@ export async function updateAdminMemberRole(id: string, role: AdminRole) {
 }
 
 export async function toggleAdminMemberActive(id: string, isActive: boolean) {
+  const parsed = teamMemberToggleActiveSchema.safeParse({ id, isActive });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid active state or ID' };
+  }
+
   const currentAdmin = await requireSuperAdmin();
 
   // Prevent super_admin from locking themselves out
-  if (id === currentAdmin.id && !isActive) {
+  if (parsed.data.id === currentAdmin.id && !parsed.data.isActive) {
     return { error: 'You cannot deactivate your own super_admin account.' };
   }
 
   const service = createAdminServiceClient();
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (service as any)
     .from('admin_profiles')
-    .update({ is_active: isActive, updated_at: new Date().toISOString() })
-    .eq('id', id);
+    .update({ is_active: parsed.data.isActive, updated_at: new Date().toISOString() })
+    .eq('id', parsed.data.id);
 
   if (error) {
     return { error: error.message };
@@ -157,11 +193,11 @@ export async function toggleAdminMemberActive(id: string, isActive: boolean) {
     adminId: currentAdmin.id,
     adminEmail: currentAdmin.email,
     adminName: currentAdmin.full_name,
-    action: isActive ? 'activate' : 'deactivate',
+    action: parsed.data.isActive ? 'activate' : 'deactivate',
     workspace: 'admin',
     targetTable: 'admin_profiles',
-    targetId: id,
-    details: { isActive },
+    targetId: parsed.data.id,
+    details: { isActive: parsed.data.isActive },
   });
 
   revalidatePath('/team');
@@ -169,19 +205,25 @@ export async function toggleAdminMemberActive(id: string, isActive: boolean) {
 }
 
 export async function removeAdminMember(id: string) {
+  const parsed = teamMemberRemoveSchema.safeParse({ id });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid team member ID' };
+  }
+
   const currentAdmin = await requireSuperAdmin();
 
-  if (id === currentAdmin.id) {
+  if (parsed.data.id === currentAdmin.id) {
     return { error: 'You cannot remove your own super_admin account.' };
   }
 
   const service = createAdminServiceClient();
 
   // Delete from admin_profiles (locks them out of OmniAdmin completely)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await (service as any)
     .from('admin_profiles')
     .delete()
-    .eq('id', id);
+    .eq('id', parsed.data.id);
 
   if (error) return { error: error.message };
 
@@ -192,8 +234,8 @@ export async function removeAdminMember(id: string) {
     action: 'delete',
     workspace: 'admin',
     targetTable: 'admin_profiles',
-    targetId: id,
-    details: { removedAdminId: id },
+    targetId: parsed.data.id,
+    details: { removedAdminId: parsed.data.id },
   });
 
   revalidatePath('/team');

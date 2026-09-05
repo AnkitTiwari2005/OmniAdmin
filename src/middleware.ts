@@ -38,7 +38,10 @@ export async function middleware(request: NextRequest) {
   const isDashboard =
     pathname.startsWith('/shudhham') ||
     pathname.startsWith('/houserve') ||
-    pathname.startsWith('/buildkart');
+    pathname.startsWith('/buildkart') ||
+    pathname.startsWith('/team') ||
+    pathname.startsWith('/activity') ||
+    pathname.startsWith('/overview');
 
   if (isDashboard && !user) {
     const loginUrl = request.nextUrl.clone();

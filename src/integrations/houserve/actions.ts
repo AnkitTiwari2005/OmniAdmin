@@ -5,6 +5,17 @@ import { requireWorkspaceAccess } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import type { BookingStatus } from './types';
 import { logAdminActivity } from '@/lib/audit';
+import {
+  bookingStatusSchema,
+  assignTechnicianSchema,
+  houserveServiceSchema,
+  houservePromotionSchema,
+  technicianPromoteSchema,
+  technicianDemoteSchema,
+  technicianUpdateSchema,
+  technicianToggleActiveSchema,
+  uuidSchema,
+} from '@/lib/validation/schemas';
 
 async function requireHouserve() {
   const admin = await requireWorkspaceAccess('houserve');
@@ -22,9 +33,14 @@ function table(db: ReturnType<typeof getHouserveClient>, name: string): any {
 // ── Booking mutations ─────────────────────────────────────────
 
 export async function updateBookingStatus(bookingId: string, status: BookingStatus) {
+  const parsed = bookingStatusSchema.safeParse({ bookingId, status });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid booking status input' };
+  }
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'bookings')
-    .update({ status, updated_at: new Date().toISOString() })
+    .update({ status: parsed.data.status, updated_at: new Date().toISOString() })
     .eq('id', bookingId);
   if (error) return { error: error.message };
 
@@ -36,7 +52,7 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
     workspace: 'houserve',
     targetTable: 'bookings',
     targetId: bookingId,
-    details: { newStatus: status },
+    details: { newStatus: parsed.data.status },
   });
 
   revalidatePath('/houserve/bookings');
@@ -44,6 +60,11 @@ export async function updateBookingStatus(bookingId: string, status: BookingStat
 }
 
 export async function assignTechnicianToBooking(bookingId: string, technicianId: string) {
+  const parsed = assignTechnicianSchema.safeParse({ bookingId, technicianId });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid booking or technician ID' };
+  }
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'bookings')
     .update({ technician_id: technicianId, status: 'assigned', updated_at: new Date().toISOString() })
@@ -78,15 +99,22 @@ export interface ServiceInput {
 }
 
 export async function createService(input: ServiceInput) {
+  const parsed = houserveServiceSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid service input' };
+  }
+
   const { db, admin } = await requireHouserve();
+  const valid = parsed.data;
+
   const { error } = await table(db, 'services').insert({
-    name: input.name,
-    category: input.category,
-    description: input.description ?? null,
-    price: input.price,
-    duration_minutes: input.duration_minutes,
-    is_active: input.is_active ?? true,
-    sort_order: input.sort_order ?? 999,
+    name: valid.name,
+    category: valid.category,
+    description: valid.description ?? null,
+    price: valid.price,
+    duration_minutes: valid.duration_minutes ?? 60,
+    is_active: valid.is_active ?? true,
+    sort_order: valid.sort_order ?? 999,
   });
   if (error) return { error: error.message };
 
@@ -97,7 +125,7 @@ export async function createService(input: ServiceInput) {
     action: 'create',
     workspace: 'houserve',
     targetTable: 'services',
-    details: { name: input.name, category: input.category, price: input.price },
+    details: { name: valid.name, category: valid.category, price: valid.price },
   });
 
   revalidatePath('/houserve/services');
@@ -105,9 +133,19 @@ export async function createService(input: ServiceInput) {
 }
 
 export async function updateService(id: string, input: Partial<ServiceInput>) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid service ID' };
+
+  const parsed = houserveServiceSchema.partial().safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid service input' };
+  }
+
   const { db, admin } = await requireHouserve();
+  const valid = parsed.data;
+
   const { error } = await table(db, 'services')
-    .update({ ...input, updated_at: new Date().toISOString() })
+    .update({ ...valid, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) return { error: error.message };
 
@@ -119,7 +157,7 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
     workspace: 'houserve',
     targetTable: 'services',
     targetId: id,
-    details: input,
+    details: valid,
   });
 
   revalidatePath('/houserve/services');
@@ -127,6 +165,9 @@ export async function updateService(id: string, input: Partial<ServiceInput>) {
 }
 
 export async function toggleServiceActive(id: string, isActive: boolean) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid service ID' };
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'services').update({ is_active: isActive }).eq('id', id);
   if (error) return { error: error.message };
@@ -147,6 +188,9 @@ export async function toggleServiceActive(id: string, isActive: boolean) {
 }
 
 export async function deleteService(id: string) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid service ID' };
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'services').delete().eq('id', id);
   if (error) return { error: error.message };
@@ -179,16 +223,23 @@ export interface PromotionInput {
 }
 
 export async function createPromotion(input: PromotionInput) {
+  const parsed = houservePromotionSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid promotion input' };
+  }
+
   const { db, admin } = await requireHouserve();
+  const valid = parsed.data;
+
   const { error } = await table(db, 'promotions').insert({
-    title: input.title,
-    subtitle: input.subtitle ?? null,
-    cta_text: input.cta_text ?? 'Book Now',
-    bg_gradient: input.bg_gradient ?? 'from-blue-600 to-indigo-700',
-    link_path: input.link_path ?? '/services',
-    is_active: input.is_active ?? true,
-    sort_order: input.sort_order ?? 0,
-    image_url: input.image_url ?? null,
+    title: valid.title,
+    subtitle: valid.subtitle ?? null,
+    cta_text: valid.cta_text ?? 'Book Now',
+    bg_gradient: valid.bg_gradient ?? 'from-blue-600 to-indigo-700',
+    link_path: valid.link_path ?? '/services',
+    is_active: valid.is_active ?? true,
+    sort_order: valid.sort_order ?? 0,
+    image_url: valid.image_url ?? null,
   });
   if (error) return { error: error.message };
 
@@ -199,7 +250,7 @@ export async function createPromotion(input: PromotionInput) {
     action: 'create',
     workspace: 'houserve',
     targetTable: 'promotions',
-    details: { title: input.title },
+    details: { title: valid.title },
   });
 
   revalidatePath('/houserve/promotions');
@@ -207,8 +258,18 @@ export async function createPromotion(input: PromotionInput) {
 }
 
 export async function updatePromotion(id: string, input: Partial<PromotionInput>) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid promotion ID' };
+
+  const parsed = houservePromotionSchema.partial().safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid promotion input' };
+  }
+
   const { db, admin } = await requireHouserve();
-  const { error } = await table(db, 'promotions').update(input).eq('id', id);
+  const valid = parsed.data;
+
+  const { error } = await table(db, 'promotions').update(valid).eq('id', id);
   if (error) return { error: error.message };
 
   await logAdminActivity({
@@ -219,7 +280,7 @@ export async function updatePromotion(id: string, input: Partial<PromotionInput>
     workspace: 'houserve',
     targetTable: 'promotions',
     targetId: id,
-    details: input,
+    details: valid,
   });
 
   revalidatePath('/houserve/promotions');
@@ -227,6 +288,9 @@ export async function updatePromotion(id: string, input: Partial<PromotionInput>
 }
 
 export async function togglePromotionActive(id: string, isActive: boolean) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid promotion ID' };
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'promotions').update({ is_active: isActive }).eq('id', id);
   if (error) return { error: error.message };
@@ -247,6 +311,9 @@ export async function togglePromotionActive(id: string, isActive: boolean) {
 }
 
 export async function deletePromotion(id: string) {
+  const idParsed = uuidSchema.safeParse(id);
+  if (!idParsed.success) return { error: 'Invalid promotion ID' };
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'promotions').delete().eq('id', id);
   if (error) return { error: error.message };
@@ -268,6 +335,11 @@ export async function deletePromotion(id: string) {
 // ── Technician mutations ───────────────────────────────────────
 
 export async function promoteCustomerToTechnician(customerId: string) {
+  const parsed = technicianPromoteSchema.safeParse({ customerId });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid customer ID' };
+  }
+
   const { db, admin } = await requireHouserve();
   // Try setting role to technician and is_active to true
   const { error } = await table(db, 'profiles')
@@ -298,6 +370,11 @@ export async function promoteCustomerToTechnician(customerId: string) {
 }
 
 export async function demoteTechnicianToCustomer(technicianId: string) {
+  const parsed = technicianDemoteSchema.safeParse({ technicianId });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid technician ID' };
+  }
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'profiles')
     .update({ role: 'customer', updated_at: new Date().toISOString() })
@@ -324,6 +401,11 @@ export async function updateTechnician(
   id: string,
   input: { full_name?: string; phone?: string; email?: string }
 ) {
+  const parsed = technicianUpdateSchema.safeParse({ id, ...input });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid technician details' };
+  }
+
   const { db, admin } = await requireHouserve();
   const { error } = await table(db, 'profiles')
     .update({ ...input, updated_at: new Date().toISOString() })
@@ -347,6 +429,11 @@ export async function updateTechnician(
 }
 
 export async function toggleTechnicianActive(id: string, isActive: boolean) {
+  const parsed = technicianToggleActiveSchema.safeParse({ id, isActive });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid technician ID or active state' };
+  }
+
   const { db, admin } = await requireHouserve();
   // Try updating is_active column
   const { error } = await table(db, 'profiles')
@@ -375,4 +462,3 @@ export async function toggleTechnicianActive(id: string, isActive: boolean) {
   revalidatePath('/houserve/technicians');
   return { success: true };
 }
-

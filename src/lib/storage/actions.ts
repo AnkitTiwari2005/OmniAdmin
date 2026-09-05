@@ -1,16 +1,22 @@
-﻿'use server';
+'use server';
 
 import { createAdminServiceClient } from '@/lib/supabase/admin';
 import { requireAdmin } from '@/lib/auth';
+import { z } from 'zod';
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/svg+xml'];
 const MAX_SIZE = 5 * 1024 * 1024; // 5MB
+
+const uploadFolderSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/, 'Invalid upload folder name');
 
 export async function uploadImageAction(formData: FormData): Promise<{ url?: string; error?: string }> {
   try {
     await requireAdmin();
     const file = formData.get('file') as File | null;
-    const folder = (formData.get('folder') as string) || 'general';
+    const rawFolder = (formData.get('folder') as string) || 'general';
+
+    const folderParsed = uploadFolderSchema.safeParse(rawFolder);
+    const folder = folderParsed.success ? folderParsed.data : 'general';
 
     if (!file || !(file instanceof File)) {
       return { error: 'No file provided for upload.' };
@@ -25,7 +31,7 @@ export async function uploadImageAction(formData: FormData): Promise<{ url?: str
     }
 
     const service = createAdminServiceClient();
-    const extension = file.name.split('.').pop() || 'jpg';
+    const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
     const cleanName = file.name
       .replace(/\.[^/.]+$/, '')
       .replace(/[^a-zA-Z0-9_-]/g, '_')

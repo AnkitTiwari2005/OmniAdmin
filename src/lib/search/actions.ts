@@ -14,75 +14,73 @@ export interface SearchResultItem {
   badge: string;
 }
 
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 export async function searchGlobalRecords(query: string): Promise<SearchResultItem[]> {
   const q = query.trim();
   if (!q || q.length < 2) return [];
 
   await requireAdmin();
 
+  const isUuid = UUID_REGEX.test(q);
   const results: SearchResultItem[] = [];
 
-  const [shudhhamOrdersRes, buildkartOrdersRes, houserveBookingsRes, shudhhamCustRes, houserveCustRes, buildkartCustRes] =
-    await Promise.allSettled([
-      // Shudhham orders
-      getShudhhamClient()
-        .from('orders')
-        .select('id, order_ref, total_amount, status, created_at')
-        .or(`id.ilike.%${q}%,order_ref.ilike.%${q}%`)
-        .limit(3),
+  // Build query promises with schema-safe filters (never ilike on uuid columns)
+  const shudhhamOrderQuery = isUuid
+    ? getShudhhamClient().from('orders').select('id, full_name, total_amount, status, created_at').eq('id', q).limit(3)
+    : getShudhhamClient().from('orders').select('id, full_name, total_amount, status, created_at').ilike('full_name', `%${q}%`).limit(3);
 
-      // BuildKart orders
-      getBuildKartClient()
-        .from('orders')
-        .select('id, total, status, created_at')
-        .ilike('id', `%${q}%`)
-        .limit(3),
+  const buildkartOrderQuery = isUuid
+    ? getBuildKartClient().from('orders').select('id, total, status, created_at').eq('id', q).limit(3)
+    : Promise.resolve({ data: [] as any[], error: null });
 
-      // Houserve bookings
-      getHouserveClient()
-        .from('bookings')
-        .select('id, booking_ref, total_amount, status, created_at')
-        .or(`id.ilike.%${q}%,booking_ref.ilike.%${q}%`)
-        .limit(3),
+  const houserveBookingQuery = isUuid
+    ? getHouserveClient().from('bookings').select('id, booking_ref, total_amount, status, created_at').eq('id', q).limit(3)
+    : getHouserveClient().from('bookings').select('id, booking_ref, total_amount, status, created_at').ilike('booking_ref', `%${q}%`).limit(3);
 
-      // Shudhham customers
-      getShudhhamClient()
-        .from('profiles')
-        .select('id, full_name, email')
-        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
-        .limit(3),
+  const shudhhamCustQuery = isUuid
+    ? getShudhhamClient().from('profiles').select('id, full_name, email').eq('id', q).limit(3)
+    : getShudhhamClient().from('profiles').select('id, full_name, email').or(`full_name.ilike.%${q}%,email.ilike.%${q}%`).limit(3);
 
-      // Houserve customers
-      getHouserveClient()
-        .from('profiles')
-        .select('id, full_name, email')
-        .eq('role', 'customer')
-        .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
-        .limit(3),
+  const houserveCustQuery = isUuid
+    ? getHouserveClient().from('profiles').select('id, full_name, email').eq('id', q).limit(3)
+    : getHouserveClient().from('profiles').select('id, full_name, email').or(`full_name.ilike.%${q}%,email.ilike.%${q}%`).limit(3);
 
-      // BuildKart customers
-      getBuildKartClient()
-        .from('profiles')
-        .select('id, name, email')
-        .or(`name.ilike.%${q}%,email.ilike.%${q}%`)
-        .limit(3),
-    ]);
+  const buildkartCustQuery = isUuid
+    ? getBuildKartClient().from('profiles').select('id, name, email').eq('id', q).limit(3)
+    : getBuildKartClient().from('profiles').select('id, name, email').or(`name.ilike.%${q}%,email.ilike.%${q}%`).limit(3);
 
-  // Shudhham Orders
+  const [
+    shudhhamOrdersRes,
+    buildkartOrdersRes,
+    houserveBookingsRes,
+    shudhhamCustRes,
+    houserveCustRes,
+    buildkartCustRes,
+  ] = await Promise.allSettled([
+    shudhhamOrderQuery,
+    buildkartOrderQuery,
+    houserveBookingQuery,
+    shudhhamCustQuery,
+    houserveCustQuery,
+    buildkartCustQuery,
+  ]);
+
+  // 1. Shudhham Orders (searched by customer name or UUID)
   if (shudhhamOrdersRes.status === 'fulfilled' && shudhhamOrdersRes.value.data) {
-    for (const o of shudhhamOrdersRes.value.data as Array<{ id: string; order_ref: string | null; total_amount: number; status: string }>) {
+    for (const o of shudhhamOrdersRes.value.data as Array<{ id: string; full_name: string | null; total_amount: number; status: string }>) {
       results.push({
         id: `shudhham-order-${o.id}`,
-        title: `Order ${o.order_ref || o.id.slice(0, 8)}`,
+        title: `Order #${o.id.slice(0, 8)} (${o.full_name || 'Customer'})`,
         subtitle: `₹${o.total_amount} · ${o.status}`,
-        href: `/shudhham/orders?q=${o.order_ref || o.id}`,
+        href: `/shudhham/orders?q=${o.id}`,
         group: 'Orders & Bookings',
         badge: 'Shudhham',
       });
     }
   }
 
-  // BuildKart Orders
+  // 2. BuildKart Orders (searched by UUID)
   if (buildkartOrdersRes.status === 'fulfilled' && buildkartOrdersRes.value.data) {
     for (const o of buildkartOrdersRes.value.data as Array<{ id: string; total: number; status: string }>) {
       results.push({
@@ -96,7 +94,7 @@ export async function searchGlobalRecords(query: string): Promise<SearchResultIt
     }
   }
 
-  // Houserve Bookings
+  // 3. Houserve Bookings (searched by booking_ref or UUID)
   if (houserveBookingsRes.status === 'fulfilled' && houserveBookingsRes.value.data) {
     for (const b of houserveBookingsRes.value.data as Array<{ id: string; booking_ref: string | null; total_amount: number; status: string }>) {
       results.push({
@@ -110,7 +108,7 @@ export async function searchGlobalRecords(query: string): Promise<SearchResultIt
     }
   }
 
-  // Shudhham Customers
+  // 4. Shudhham Customers
   if (shudhhamCustRes.status === 'fulfilled' && shudhhamCustRes.value.data) {
     for (const c of shudhhamCustRes.value.data as Array<{ id: string; full_name: string | null; email: string | null }>) {
       results.push({
@@ -124,7 +122,7 @@ export async function searchGlobalRecords(query: string): Promise<SearchResultIt
     }
   }
 
-  // Houserve Customers
+  // 5. Houserve Customers
   if (houserveCustRes.status === 'fulfilled' && houserveCustRes.value.data) {
     for (const c of houserveCustRes.value.data as Array<{ id: string; full_name: string | null; email: string | null }>) {
       results.push({
@@ -138,7 +136,7 @@ export async function searchGlobalRecords(query: string): Promise<SearchResultIt
     }
   }
 
-  // BuildKart Customers
+  // 6. BuildKart Customers
   if (buildkartCustRes.status === 'fulfilled' && buildkartCustRes.value.data) {
     for (const c of buildkartCustRes.value.data as Array<{ id: string; name: string | null; email: string | null }>) {
       results.push({
