@@ -237,7 +237,7 @@ export async function getBuildKartProducts(
 
   let query = db
     .from('products')
-    .select('id, name, price, original_price, category, subcategory, brand, is_active, is_featured, is_bestseller, rating, review_count, image_url, created_at', { count: 'exact' })
+    .select('id, name, price, original_price, category, subcategory, brand, is_active, is_featured, is_bestseller, rating, review_count, images, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -249,7 +249,23 @@ export async function getBuildKartProducts(
   const { data, count, error } = await query;
   if (error) throw error;
 
-  let products = (data ?? []) as BuildKartProduct[];
+  let products = ((data ?? []) as Array<Record<string, unknown>>).map((p) => ({
+    id: p.id as string,
+    name: p.name as string,
+    price: Number(p.price) || 0,
+    original_price: p.original_price != null ? Number(p.original_price) : null,
+    category: p.category as string,
+    subcategory: p.subcategory as string | null,
+    brand: p.brand as string | null,
+    is_active: Boolean(p.is_active),
+    is_featured: Boolean(p.is_featured),
+    is_bestseller: Boolean(p.is_bestseller),
+    rating: p.rating != null ? Number(p.rating) : null,
+    review_count: p.review_count != null ? Number(p.review_count) : null,
+    image_url: Array.isArray(p.images) ? (p.images[0] as string) : null,
+    created_at: p.created_at as string,
+  })) as BuildKartProduct[];
+
   if (search) {
     const s = search.toLowerCase();
     products = products.filter((p) => p.name.toLowerCase().includes(s) || (p.brand ?? '').toLowerCase().includes(s));
