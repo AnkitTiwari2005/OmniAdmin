@@ -89,11 +89,18 @@ export async function getBuildKartCustomers(page = 1, limit = 30): Promise<{ cus
   const offset = (page - 1) * limit;
   const { data, count, error } = await db
     .from('profiles')
-    .select('id, full_name, email, phone, created_at', { count: 'exact' })
+    .select('id, name, email, phone, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw error;
-  return { customers: (data ?? []) as BuildKartCustomer[], total: count ?? 0 };
+  const customers = ((data ?? []) as Array<Record<string, unknown>>).map((c) => ({
+    id: c.id as string,
+    full_name: (c.name as string) ?? null,
+    email: c.email as string | null,
+    phone: c.phone as string | null,
+    created_at: c.created_at as string,
+  }));
+  return { customers, total: count ?? 0 };
 }
 
 // ── Payments list ─────────────────────────────────────────────
@@ -120,10 +127,13 @@ export async function getBuildKartPayments(page = 1, limit = 30): Promise<{ paym
 
   const userIds = (data ?? []).map((o) => (o as Record<string, unknown>).user_id as string).filter(Boolean);
   const { data: profiles } = userIds.length
-    ? await db.from('profiles').select('id, full_name, email').in('id', userIds)
+    ? await db.from('profiles').select('id, name, email').in('id', userIds)
     : { data: [] };
 
-  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [(p as Record<string, unknown>).id as string, p]));
+  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [
+    (p as Record<string, unknown>).id as string,
+    { full_name: (p as Record<string, unknown>).name as string | null, email: (p as Record<string, unknown>).email as string | null }
+  ]));
 
   const payments = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({
     id: o.id as string,

@@ -207,13 +207,22 @@ export async function getHouserveCustomers(page = 1, limit = 30): Promise<{ cust
 
   const { data, count, error } = await db
     .from('profiles')
-    .select('id, full_name, email, phone, avatar_url, razorpay_customer_id, created_at', { count: 'exact' })
+    .select('id, full_name, email, phone, avatar_url, created_at', { count: 'exact' })
     .eq('role', 'customer')
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
   if (error) throw error;
-  return { customers: (data ?? []) as HouserveCustomer[], total: count ?? 0 };
+  const customers = ((data ?? []) as Array<Record<string, unknown>>).map((p) => ({
+    id: p.id as string,
+    full_name: p.full_name as string | null,
+    email: p.email as string | null,
+    phone: p.phone as string | null,
+    avatar_url: p.avatar_url as string | null,
+    razorpay_customer_id: null,
+    created_at: p.created_at as string,
+  }));
+  return { customers, total: count ?? 0 };
 }
 
 // ── Payments ──────────────────────────────────────────────────
