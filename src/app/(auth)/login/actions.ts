@@ -27,3 +27,13 @@ export async function logoutAction() {
   await supabase.auth.signOut();
   redirect('/login');
 }
+
+export async function requestPasswordResetAction(email: string, redirectToOrigin: string) {
+  if (!email) return { error: 'Email is required.' };
+  const supabase = await createAdminSessionClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${redirectToOrigin}/reset-password`,
+  });
+  if (error) return { error: error.message };
+  return { success: true };
+}

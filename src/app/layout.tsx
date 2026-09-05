@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/components/providers/ThemeProvider';
 import { Toaster } from '@/components/ui/toaster';
+import { IdleTimeoutProvider } from '@/components/shell/IdleTimeoutProvider';
 
 // This is an internal admin tool — all pages require auth session, so static
 // prerendering is both unnecessary and harmful. Opt out globally.
@@ -27,8 +28,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} font-sans`}>
         <ThemeProvider>
-          {children}
-          <Toaster />
+          <IdleTimeoutProvider>
+            {children}
+            <Toaster />
+          </IdleTimeoutProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -17,6 +17,7 @@ import {
   deleteBuildKartCategory,
 } from '@/integrations/buildkart/actions';
 import type { BuildKartCategory } from '@/integrations/buildkart/queries';
+import { buildKartCategorySchema } from '@/lib/validation/schemas';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Loader2, Tag } from 'lucide-react';
 
 interface Props {
@@ -29,6 +30,7 @@ export function CategoriesPanel({ categories }: Props) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<BuildKartCategory | null>(null);
   const [name, setName] = useState('');
+  const [nameError, setNameError] = useState<string | null>(null);
   const [sortOrder, setSortOrder] = useState(999);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,6 +40,7 @@ export function CategoriesPanel({ categories }: Props) {
   function openCreate() {
     setEditing(null);
     setName('');
+    setNameError(null);
     setSortOrder(999);
     setError(null);
     setDialogOpen(true);
@@ -46,6 +49,7 @@ export function CategoriesPanel({ categories }: Props) {
   function openEdit(c: BuildKartCategory) {
     setEditing(c);
     setName(c.name);
+    setNameError(null);
     setSortOrder(c.sort_order);
     setError(null);
     setDialogOpen(true);
@@ -54,6 +58,22 @@ export function CategoriesPanel({ categories }: Props) {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const parsed = buildKartCategorySchema.safeParse({ name });
+    if (!parsed.success) {
+      setNameError(parsed.error.errors[0]?.message || 'Invalid category name');
+      return;
+    }
+
+    const isDuplicate = categories.some(
+      (c) => c.name.trim().toLowerCase() === name.trim().toLowerCase() && c.id !== editing?.id
+    );
+    if (isDuplicate) {
+      setNameError('A category with this name already exists.');
+      return;
+    }
+    setNameError(null);
+
     startTransition(async () => {
       const result = editing
         ? await updateBuildKartCategory(editing.id, { name, sort_order: sortOrder })
@@ -218,10 +238,15 @@ export function CategoriesPanel({ categories }: Props) {
               <Label>Category name *</Label>
               <Input
                 value={name}
-                onChange={(e) => setName(e.target.value)}
+                onChange={(e) => {
+                  setName(e.target.value);
+                  if (nameError) setNameError(null);
+                }}
                 required
                 placeholder="e.g. Cement"
+                className={nameError ? 'border-destructive' : ''}
               />
+              {nameError && <p className="text-xs text-destructive font-medium">{nameError}</p>}
             </div>
             <div className="space-y-1.5">
               <Label>Sort order</Label>

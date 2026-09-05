@@ -107,6 +107,20 @@ export function Header({ admin, workspaceName, accentHex }: HeaderProps) {
               </p>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {admin.role === 'super_admin' && (
+              <DropdownMenuItem onClick={() => router.push('/overview')} className="cursor-pointer">
+                Overview
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuItem onClick={() => router.push('/activity')} className="cursor-pointer">
+              Activity Log
+            </DropdownMenuItem>
+            {admin.role === 'super_admin' && (
+              <DropdownMenuItem onClick={() => router.push('/team')} className="cursor-pointer">
+                Team Management
+              </DropdownMenuItem>
+            )}
+            <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive cursor-pointer">
               <LogOut className="mr-2 h-4 w-4" />
               Sign out

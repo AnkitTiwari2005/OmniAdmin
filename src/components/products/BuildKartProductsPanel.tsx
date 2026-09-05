@@ -11,6 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -18,8 +19,10 @@ import {
   updateBuildKartProduct,
   toggleBuildKartProductField,
   deleteBuildKartProduct,
+  bulkUpdateBuildKartProducts,
 } from '@/integrations/buildkart/actions';
 import type { BuildKartProduct } from '@/integrations/buildkart/queries';
+import { buildKartProductSchema } from '@/lib/validation/schemas';
 import { Plus, Pencil, Trash2, Search, Star, Loader2, X } from 'lucide-react';
 
 interface Props {
@@ -76,11 +79,50 @@ export function BuildKartProductsPanel({
   const [editing, setEditing] = useState<BuildKartProduct | null>(null);
   const [form, setForm] = useState<ProductFormState>(EMPTY_FORM);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [searchInput, setSearchInput] = useState(currentSearch);
 
   // Delete modal state
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteName, setDeleteName] = useState<string>('');
+
+  // Bulk actions state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  function toggleSelectAll() {
+    if (products.every((p) => selectedIds.includes(p.id))) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(products.map((p) => p.id));
+    }
+  }
+
+  function toggleSelectOne(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  }
+
+  function handleBulkAction(
+    updates: Partial<{ is_active: boolean; is_featured: boolean; category: string }>,
+    description: string
+  ) {
+    if (!selectedIds.length) return;
+    startTransition(async () => {
+      const res = await bulkUpdateBuildKartProducts(selectedIds, updates);
+      if ('error' in res && res.error) {
+        toast({ title: 'Bulk Update Failed', description: res.error, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: 'Products Updated',
+        description: `${description} for ${selectedIds.length} products`,
+        variant: 'success',
+      });
+      setSelectedIds([]);
+      router.refresh();
+    });
+  }
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -99,6 +141,7 @@ export function BuildKartProductsPanel({
       images: [''],
     });
     setError(null);
+    setFieldErrors({});
     setDialogOpen(true);
   }
 
@@ -119,6 +162,7 @@ export function BuildKartProductsPanel({
       is_bestseller: p.is_bestseller,
     });
     setError(null);
+    setFieldErrors({});
     setDialogOpen(true);
   }
 
@@ -143,22 +187,33 @@ export function BuildKartProductsPanel({
 
     const cleanedImages = form.images.map((img) => img.trim()).filter(Boolean);
 
-    startTransition(async () => {
-      const payload = {
-        name: form.name,
-        price: Number(form.price),
-        original_price: form.original_price != null && form.original_price !== 0 ? Number(form.original_price) : null,
-        discount: form.discount != null ? Number(form.discount) : null,
-        stock: Number(form.stock) || 0,
-        category: form.category,
-        subcategory: form.subcategory || null,
-        brand: form.brand || null,
-        images: cleanedImages,
-        is_active: form.is_active,
-        is_featured: form.is_featured,
-        is_bestseller: form.is_bestseller,
-      };
+    const payload = {
+      name: form.name,
+      price: Number(form.price),
+      original_price: form.original_price != null && form.original_price !== 0 ? Number(form.original_price) : null,
+      discount: form.discount != null && form.discount !== 0 ? Number(form.discount) : null,
+      stock: Number(form.stock) || 0,
+      category: form.category,
+      subcategory: form.subcategory?.trim() || null,
+      brand: form.brand?.trim() || null,
+      images: cleanedImages,
+      is_active: form.is_active,
+      is_featured: form.is_featured,
+      is_bestseller: form.is_bestseller,
+    };
 
+    const parsed = buildKartProductSchema.safeParse(payload);
+    if (!parsed.success) {
+      const errs: Record<string, string> = {};
+      parsed.error.errors.forEach((err) => {
+        if (err.path[0]) errs[err.path[0].toString()] = err.message;
+      });
+      setFieldErrors(errs);
+      return;
+    }
+    setFieldErrors({});
+
+    startTransition(async () => {
       const result = editing
         ? await updateBuildKartProduct(editing.id, payload)
         : await createBuildKartProduct(payload);
@@ -274,6 +329,15 @@ export function BuildKartProductsPanel({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  className="rounded border-input h-4 w-4 accent-primary cursor-pointer"
+                  checked={products.length > 0 && products.every((p) => selectedIds.includes(p.id))}
+                  onChange={toggleSelectAll}
+                  aria-label="Select all products"
+                />
+              </TableHead>
               <TableHead>Product</TableHead>
               <TableHead>Category / Brand</TableHead>
               <TableHead>Price</TableHead>
@@ -288,7 +352,7 @@ export function BuildKartProductsPanel({
           <TableBody>
             {products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={10} className="text-center py-12 text-muted-foreground">
                   No products found
                 </TableCell>
               </TableRow>
@@ -296,7 +360,16 @@ export function BuildKartProductsPanel({
               products.map((p) => {
                 const stockVal = p.stock ?? 0;
                 return (
-                  <TableRow key={p.id}>
+                  <TableRow key={p.id} className={selectedIds.includes(p.id) ? 'bg-muted/40' : undefined}>
+                    <TableCell className="w-10">
+                      <input
+                        type="checkbox"
+                        className="rounded border-input h-4 w-4 accent-primary cursor-pointer"
+                        checked={selectedIds.includes(p.id)}
+                        onChange={() => toggleSelectOne(p.id)}
+                        aria-label={`Select product ${p.name}`}
+                      />
+                    </TableCell>
                     <TableCell>
                       <div className="flex items-center gap-3">
                         {p.image_url ? (
@@ -420,6 +493,77 @@ export function BuildKartProductsPanel({
         </Table>
       </div>
 
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2.5 bg-foreground text-background px-4 py-2.5 rounded-full shadow-2xl border border-border/20 animate-in fade-in slide-in-from-bottom-4">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-background/20 whitespace-nowrap">
+            {selectedIds.length} selected
+          </span>
+          <div className="h-4 w-px bg-background/20" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-background/90 hover:text-background hover:bg-background/20"
+            onClick={() => handleBulkAction({ is_active: true }, 'Activated')}
+            disabled={isPending}
+          >
+            Activate
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-background/90 hover:text-background hover:bg-background/20"
+            onClick={() => handleBulkAction({ is_active: false }, 'Deactivated')}
+            disabled={isPending}
+          >
+            Deactivate
+          </Button>
+          <div className="h-4 w-px bg-background/20" />
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-background/90 hover:text-background hover:bg-background/20"
+            onClick={() => handleBulkAction({ is_featured: true }, 'Featured')}
+            disabled={isPending}
+          >
+            Feature
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-background/90 hover:text-background hover:bg-background/20"
+            onClick={() => handleBulkAction({ is_featured: false }, 'Unfeatured')}
+            disabled={isPending}
+          >
+            Unfeature
+          </Button>
+          <div className="h-4 w-px bg-background/20" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs whitespace-nowrap">Category:</span>
+            <Select onValueChange={(val) => handleBulkAction({ category: val }, `Reassigned to ${val}`)}>
+              <SelectTrigger className="h-7 text-xs bg-background/10 border-background/20 text-background min-w-[120px]">
+                <SelectValue placeholder="Move to..." />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-background/60 hover:text-background hover:bg-background/20 ml-1"
+            onClick={() => setSelectedIds([])}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
+
       {/* Create / Edit dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-xl max-h-[85vh] overflow-y-auto">
@@ -431,10 +575,15 @@ export function BuildKartProductsPanel({
               <Label>Product Name *</Label>
               <Input
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, name: e.target.value }));
+                  if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+                }}
                 required
                 placeholder="e.g. UltraTech Super Cement 50kg"
+                className={fieldErrors.name ? 'border-destructive' : ''}
               />
+              {fieldErrors.name && <p className="text-xs text-destructive font-medium">{fieldErrors.name}</p>}
             </div>
 
             <div className="grid grid-cols-3 gap-3">
@@ -447,6 +596,7 @@ export function BuildKartProductsPanel({
                   value={form.price}
                   onChange={(e) => {
                     const price = parseFloat(e.target.value) || 0;
+                    if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: '' }));
                     setForm((f) => {
                       const disc =
                         f.original_price && f.original_price > price
@@ -456,7 +606,9 @@ export function BuildKartProductsPanel({
                     });
                   }}
                   required
+                  className={fieldErrors.price ? 'border-destructive' : ''}
                 />
+                {fieldErrors.price && <p className="text-xs text-destructive font-medium">{fieldErrors.price}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Original Price (₹)</Label>
@@ -501,10 +653,15 @@ export function BuildKartProductsPanel({
                 <Label>Category *</Label>
                 <Input
                   value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, category: e.target.value }));
+                    if (fieldErrors.category) setFieldErrors((prev) => ({ ...prev, category: '' }));
+                  }}
                   required
                   placeholder="e.g. Cement"
+                  className={fieldErrors.category ? 'border-destructive' : ''}
                 />
+                {fieldErrors.category && <p className="text-xs text-destructive font-medium">{fieldErrors.category}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Subcategory</Label>
@@ -530,20 +687,25 @@ export function BuildKartProductsPanel({
                 type="number"
                 min={0}
                 value={form.stock}
-                onChange={(e) =>
-                  setForm((f) => ({ ...f, stock: parseInt(e.target.value) || 0 }))
-                }
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, stock: parseInt(e.target.value) || 0 }));
+                  if (fieldErrors.stock) setFieldErrors((prev) => ({ ...prev, stock: '' }));
+                }}
                 required
-                placeholder="Units in warehouse"
+                className={fieldErrors.stock ? 'border-destructive' : ''}
               />
+              {fieldErrors.stock && <p className="text-xs text-destructive font-medium">{fieldErrors.stock}</p>}
             </div>
 
             {/* Images Array Manager */}
-            <div className="space-y-2 border rounded-lg p-3 bg-muted/20">
+            <div className="space-y-3 border rounded-lg p-3 bg-muted/20">
               <div className="flex items-center justify-between">
-                <Label className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
-                  Product Images (Array)
-                </Label>
+                <div>
+                  <Label className="font-semibold text-xs uppercase tracking-wider text-muted-foreground">
+                    Product Images (Array)
+                  </Label>
+                  <p className="text-[11px] text-muted-foreground">Upload image files or paste direct URLs</p>
+                </div>
                 <Button
                   type="button"
                   variant="outline"
@@ -551,30 +713,38 @@ export function BuildKartProductsPanel({
                   onClick={addImageRow}
                   className="h-7 text-xs gap-1"
                 >
-                  <Plus className="h-3.5 w-3.5" /> Add Image URL
+                  <Plus className="h-3.5 w-3.5" /> Add Another Image
                 </Button>
               </div>
-              {form.images.map((imgUrl, idx) => (
-                <div key={idx} className="flex items-center gap-2">
-                  <Input
-                    value={imgUrl}
-                    onChange={(e) => handleImageChange(idx, e.target.value)}
-                    placeholder="https://..."
-                    className="text-xs font-mono"
-                  />
-                  {form.images.length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      onClick={() => removeImageRow(idx)}
-                      className="h-9 w-9 p-0 text-muted-foreground hover:text-destructive"
-                    >
-                      <X className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
+              <div className="space-y-3">
+                {form.images.map((imgUrl, idx) => (
+                  <div key={idx} className="relative p-2 rounded-lg border bg-background space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-medium text-muted-foreground">
+                        Image #{idx + 1}
+                      </span>
+                      {form.images.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeImageRow(idx)}
+                          className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                          aria-label={`Remove image ${idx + 1}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
+                    </div>
+                    <ImageUpload
+                      value={imgUrl}
+                      onChange={(url) => handleImageChange(idx, url)}
+                      folder="buildkart/products"
+                      label=""
+                    />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Flags */}

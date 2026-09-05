@@ -23,6 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { exportToCsv } from '@/lib/export-csv';
 import {
   BOOKING_STATUS_COLORS,
   BOOKING_STATUS_LABELS,
@@ -32,7 +33,7 @@ import {
   type BookingStatus,
 } from '@/integrations/houserve/types';
 import { updateBookingStatus, assignTechnicianToBooking } from '@/integrations/houserve/actions';
-import { ChevronLeft, ChevronRight, Search, UserCheck, Eye, MapPin, Calendar, CreditCard, Wrench } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, UserCheck, Eye, MapPin, Calendar, CreditCard, Wrench, Download } from 'lucide-react';
 
 interface BookingsTableProps {
   bookings: HouserveBookingFull[];
@@ -152,6 +153,33 @@ export function BookingsTable({
         <span className="text-sm text-muted-foreground ml-auto">
           {total} booking{total !== 1 ? 's' : ''}
         </span>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const headers = ['Booking Ref', 'Customer', 'Service', 'Items Count', 'Scheduled Date', 'Scheduled Time', 'Total Amount', 'Status', 'Technician'];
+            const rows = bookings.map((b) => [
+              b.booking_ref,
+              b.customer?.full_name || '—',
+              b.service?.name || '—',
+              b.booking_items?.length || 1,
+              b.scheduled_date,
+              b.scheduled_time,
+              b.total_amount,
+              b.status,
+              b.technician?.full_name || 'Unassigned',
+            ]);
+            exportToCsv('houserve_bookings', headers, rows);
+            toast({ title: 'Export Complete', description: `Exported ${rows.length} bookings to CSV.`, variant: 'success' });
+          }}
+          className="gap-1.5"
+          disabled={bookings.length === 0}
+          aria-label="Export bookings as CSV"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Table */}

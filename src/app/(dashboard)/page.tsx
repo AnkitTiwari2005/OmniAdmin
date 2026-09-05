@@ -7,7 +7,7 @@ export default async function RootPage() {
   const admin = await requireAdmin();
 
   if (admin.role === 'super_admin') {
-    redirect(`/${DEFAULT_WORKSPACE}`);
+    redirect('/overview');
   }
 
   // For single-workspace admins, go directly to their workspace

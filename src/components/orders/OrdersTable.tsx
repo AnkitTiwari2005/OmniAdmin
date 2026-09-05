@@ -24,11 +24,12 @@ import {
 } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { exportToCsv } from '@/lib/export-csv';
 import { updateShudhhamOrderStatus } from '@/integrations/shudhham/actions';
 import { updateBuildKartOrderStatus } from '@/integrations/buildkart/actions';
 import type { ShudhhamOrder } from '@/integrations/shudhham/queries';
 import type { BuildKartOrder } from '@/integrations/buildkart/queries';
-import { ChevronLeft, ChevronRight, Search, Eye, MapPin, ShoppingBag, CreditCard } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Search, Eye, MapPin, ShoppingBag, CreditCard, Download } from 'lucide-react';
 
 const SHUDHHAM_STATUSES = ['processing', 'shipped', 'delivered', 'cancelled'] as const;
 const BUILDKART_STATUSES = ['Processing', 'Shipped', 'Delivered', 'Cancelled'] as const;
@@ -145,6 +146,31 @@ export function OrdersTable({
         <span className="text-sm text-muted-foreground ml-auto">
           {total} order{total !== 1 ? 's' : ''}
         </span>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const headers = ['Order Ref / ID', 'Customer Name', 'Items Count', 'Total Amount', 'Status', 'Date'];
+            const rows: (string | number | null | undefined)[][] = orders.map((o) => {
+              const ref: string = 'order_ref' in o ? String(o.order_ref || o.id) : String(o.id);
+              const customer: string = 'customer_name' in o ? String(o.customer_name || '—') : '—';
+              const items: number = 'items_count' in o ? Number(o.items_count) : 1;
+              const amount: number = 'total_amount' in o ? Number(o.total_amount) : Number((o as { total: number }).total ?? 0);
+              const status: string = String(o.status ?? '');
+              const date: string = formatDate(o.created_at);
+              return [ref, customer, items, amount, status, date];
+            });
+            exportToCsv(`${workspace}_orders`, headers, rows);
+            toast({ title: 'Export Complete', description: `Exported ${rows.length} orders to CSV.`, variant: 'success' });
+          }}
+          className="gap-1.5"
+          disabled={orders.length === 0}
+          aria-label="Export orders as CSV"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       {/* Table */}

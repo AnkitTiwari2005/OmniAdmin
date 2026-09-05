@@ -13,7 +13,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { ChevronDown, Check } from 'lucide-react';
+import { ChevronDown, Check, LayoutGrid } from 'lucide-react';
 
 interface WorkspaceSwitcherProps {
   currentSlug: WorkspaceSlug;
@@ -66,6 +66,23 @@ export function WorkspaceSwitcher({
           Switch Workspace
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {allowedWorkspaces.length > 1 && (
+          <>
+            <DropdownMenuItem
+              onClick={() => router.push('/overview')}
+              className="flex items-center gap-3 cursor-pointer"
+            >
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <LayoutGrid className="h-4 w-4" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">All Businesses</p>
+                <p className="text-xs text-muted-foreground truncate">Cross-portfolio overview</p>
+              </div>
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+          </>
+        )}
         {available.map((ws) => {
           const WsIcon = ws.icon;
           const isSelected = ws.slug === currentSlug;

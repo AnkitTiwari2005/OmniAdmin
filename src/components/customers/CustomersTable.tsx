@@ -12,8 +12,10 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
-import { Users, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { exportToCsv } from '@/lib/export-csv';
+import { Users, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 interface CustomerItem {
   id: string;
@@ -77,6 +79,29 @@ export function CustomersTable({
         <span className="text-sm text-muted-foreground ml-auto">
           {total} customer{total !== 1 ? 's' : ''}
         </span>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const headers = ['Customer ID', 'Full Name', 'Email', 'Phone', 'Joined Date'];
+            const rows = customers.map((c) => [
+              c.id,
+              c.full_name || '—',
+              c.email || '—',
+              c.phone || '—',
+              formatDate(c.created_at),
+            ]);
+            exportToCsv('customers_directory', headers, rows);
+            toast({ title: 'Export Complete', description: `Exported ${rows.length} customers to CSV.`, variant: 'success' });
+          }}
+          className="gap-1.5"
+          disabled={customers.length === 0}
+          aria-label="Export customers as CSV"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       <div className={`rounded-xl border bg-card shadow-sm overflow-hidden transition-opacity ${isPending ? 'opacity-70' : 'opacity-100'}`}>

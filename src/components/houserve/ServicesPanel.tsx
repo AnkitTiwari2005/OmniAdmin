@@ -10,10 +10,12 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { createService, updateService, toggleServiceActive, deleteService } from '@/integrations/houserve/actions';
 import type { HouserveService } from '@/integrations/houserve/types';
+import { houserveServiceSchema } from '@/lib/validation/schemas';
 import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
 
 interface ServiceFormProps {
@@ -38,6 +40,7 @@ export function ServicesPanel({ services }: ServiceFormProps) {
   const [editing, setEditing] = useState<HouserveService | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteName, setDeleteName] = useState<string>('');
@@ -46,6 +49,7 @@ export function ServicesPanel({ services }: ServiceFormProps) {
     setEditing(null);
     setForm(EMPTY);
     setError(null);
+    setFieldErrors({});
     setDialogOpen(true);
   }
 
@@ -62,12 +66,33 @@ export function ServicesPanel({ services }: ServiceFormProps) {
       sort_order: s.sort_order,
     });
     setError(null);
+    setFieldErrors({});
     setDialogOpen(true);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const parsed = houserveServiceSchema.safeParse({
+      name: form.name,
+      price: Number(form.price),
+      category: form.category,
+      description: form.description || null,
+      duration_minutes: Number(form.duration_minutes) || null,
+      image_url: form.image_url || null,
+    });
+
+    if (!parsed.success) {
+      const errs: Record<string, string> = {};
+      parsed.error.errors.forEach((err) => {
+        if (err.path[0]) errs[err.path[0].toString()] = err.message;
+      });
+      setFieldErrors(errs);
+      return;
+    }
+    setFieldErrors({});
+
     startTransition(async () => {
       const result = editing
         ? await updateService(editing.id, {
@@ -257,20 +282,30 @@ export function ServicesPanel({ services }: ServiceFormProps) {
               <Input
                 id="name"
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, name: e.target.value }));
+                  if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+                }}
                 required
                 placeholder="e.g. Deep Cleaning"
+                className={fieldErrors.name ? 'border-destructive' : ''}
               />
+              {fieldErrors.name && <p className="text-xs text-destructive font-medium">{fieldErrors.name}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="category">Category *</Label>
               <Input
                 id="category"
                 value={form.category}
-                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, category: e.target.value }));
+                  if (fieldErrors.category) setFieldErrors((prev) => ({ ...prev, category: '' }));
+                }}
                 required
                 placeholder="e.g. Cleaning"
+                className={fieldErrors.category ? 'border-destructive' : ''}
               />
+              {fieldErrors.category && <p className="text-xs text-destructive font-medium">{fieldErrors.category}</p>}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="desc">Description</Label>
@@ -291,9 +326,14 @@ export function ServicesPanel({ services }: ServiceFormProps) {
                   min={0}
                   step={0.01}
                   value={form.price}
-                  onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }));
+                    if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: '' }));
+                  }}
                   required
+                  className={fieldErrors.price ? 'border-destructive' : ''}
                 />
+                {fieldErrors.price && <p className="text-xs text-destructive font-medium">{fieldErrors.price}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="duration">Duration (min) *</Label>
@@ -309,6 +349,13 @@ export function ServicesPanel({ services }: ServiceFormProps) {
                 />
               </div>
             </div>
+            <ImageUpload
+              value={form.image_url}
+              onChange={(url) => setForm((f) => ({ ...f, image_url: url || null }))}
+              folder="houserve/services"
+              label="Service Icon / Photo"
+            />
+
             <div className="space-y-1.5">
               <Label htmlFor="sort">Sort order</Label>
               <Input

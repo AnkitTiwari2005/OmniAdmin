@@ -47,7 +47,7 @@ export async function requireAdmin(): Promise<AdminProfile> {
     .eq('id', userId)
     .single();
 
-  if (profileError || !profile) {
+  if (profileError || !profile || profile.is_active === false) {
     redirect('/login?error=not_authorized');
   }
 
@@ -58,6 +58,15 @@ export async function requireAdmin(): Promise<AdminProfile> {
     role: profile.role as AdminRole,
     created_at: profile.created_at,
   };
+}
+
+// ── Require super_admin role ──────────────────────────────────
+export async function requireSuperAdmin(): Promise<AdminProfile> {
+  const admin = await requireAdmin();
+  if (admin.role !== 'super_admin') {
+    redirect('/');
+  }
+  return admin;
 }
 
 // ── Get the admin without redirecting (returns null if not authed) ─

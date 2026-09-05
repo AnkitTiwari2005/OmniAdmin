@@ -12,15 +12,18 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import {
   createShudhhamProduct,
   updateShudhhamProduct,
   deleteShudhhamProduct,
+  bulkUpdateShudhhamProducts,
 } from '@/integrations/shudhham/actions';
 import type { ShudhhamProduct } from '@/integrations/shudhham/queries';
-import { Plus, Pencil, Trash2, Search, Loader2 } from 'lucide-react';
+import { shudhhamProductSchema } from '@/lib/validation/schemas';
+import { Plus, Pencil, Trash2, Search, Loader2, CheckSquare } from 'lucide-react';
 
 interface Props {
   products: ShudhhamProduct[];
@@ -54,11 +57,47 @@ export function ShudhhamProductsPanel({
   const [editing, setEditing] = useState<ShudhhamProduct | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [searchInput, setSearchInput] = useState(currentSearch);
 
   // Delete modal state
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [deleteName, setDeleteName] = useState<string>('');
+
+  // Bulk actions state
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+
+  function toggleSelectAll() {
+    if (products.every((p) => selectedIds.includes(p.id))) {
+      setSelectedIds([]);
+    } else {
+      setSelectedIds(products.map((p) => p.id));
+    }
+  }
+
+  function toggleSelectOne(id: string) {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  }
+
+  function handleBulkCategory(newCategory: string) {
+    if (!selectedIds.length || !newCategory) return;
+    startTransition(async () => {
+      const res = await bulkUpdateShudhhamProducts(selectedIds, { category: newCategory });
+      if ('error' in res && res.error) {
+        toast({ title: 'Bulk Update Failed', description: res.error, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: 'Products Updated',
+        description: `Reassigned ${selectedIds.length} products to ${newCategory}`,
+        variant: 'success',
+      });
+      setSelectedIds([]);
+      router.refresh();
+    });
+  }
 
   function setParam(key: string, value: string) {
     const params = new URLSearchParams(searchParams.toString());
@@ -73,6 +112,7 @@ export function ShudhhamProductsPanel({
     setEditing(null);
     setForm({ ...EMPTY, category: currentCategory !== 'all' ? currentCategory : '' });
     setError(null);
+    setFieldErrors({});
     setDialogOpen(true);
   }
 
@@ -86,12 +126,25 @@ export function ShudhhamProductsPanel({
       image_url: p.image_url,
     });
     setError(null);
+    setFieldErrors({});
     setDialogOpen(true);
   }
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+
+    const parsed = shudhhamProductSchema.safeParse({ ...form, price: Number(form.price) });
+    if (!parsed.success) {
+      const errs: Record<string, string> = {};
+      parsed.error.errors.forEach((err) => {
+        if (err.path[0]) errs[err.path[0].toString()] = err.message;
+      });
+      setFieldErrors(errs);
+      return;
+    }
+    setFieldErrors({});
+
     startTransition(async () => {
       const result = editing
         ? await updateShudhhamProduct(editing.id, { ...form, price: Number(form.price) })
@@ -183,6 +236,15 @@ export function ShudhhamProductsPanel({
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-10">
+                <input
+                  type="checkbox"
+                  checked={products.length > 0 && products.every((p) => selectedIds.includes(p.id))}
+                  onChange={toggleSelectAll}
+                  className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                  aria-label="Select all products"
+                />
+              </TableHead>
               <TableHead>Product</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Price</TableHead>
@@ -193,43 +255,54 @@ export function ShudhhamProductsPanel({
           <TableBody>
             {products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-12 text-muted-foreground">
+                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
                   No products found
                 </TableCell>
               </TableRow>
             ) : (
-              products.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>
-                    <div className="flex items-center gap-3">
-                      {p.image_url ? (
-                        <div className="relative h-9 w-9 rounded-md overflow-hidden border shrink-0 bg-muted">
-                          <Image
-                            src={p.image_url}
-                            alt={p.name}
-                            width={36}
-                            height={36}
-                            className="object-cover h-full w-full"
-                            unoptimized
-                          />
-                        </div>
-                      ) : (
-                        <div className="h-9 w-9 rounded-md bg-muted border flex items-center justify-center text-xs shrink-0">
-                          🌿
-                        </div>
-                      )}
-                      <span className="font-medium text-sm">{p.name}</span>
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant="secondary" className="text-xs">
-                      {p.category}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-sm font-medium">{formatCurrency(p.price)}</TableCell>
-                  <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">
-                    {p.description ?? '—'}
-                  </TableCell>
+              products.map((p) => {
+                const isSelected = selectedIds.includes(p.id);
+                return (
+                  <TableRow key={p.id} className={isSelected ? 'bg-primary/5' : ''}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleSelectOne(p.id)}
+                        className="rounded border-input text-primary focus:ring-primary h-4 w-4"
+                        aria-label={`Select ${p.name}`}
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-3">
+                        {p.image_url ? (
+                          <div className="relative h-9 w-9 rounded-md overflow-hidden border shrink-0 bg-muted">
+                            <Image
+                              src={p.image_url}
+                              alt={p.name}
+                              width={36}
+                              height={36}
+                              className="object-cover h-full w-full"
+                              unoptimized
+                            />
+                          </div>
+                        ) : (
+                          <div className="h-9 w-9 rounded-md bg-muted border flex items-center justify-center text-xs shrink-0">
+                            🌿
+                          </div>
+                        )}
+                        <span className="font-medium text-sm">{p.name}</span>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant="secondary" className="text-xs">
+                        {p.category}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-sm font-medium">{formatCurrency(p.price)}</TableCell>
+                    <TableCell className="text-sm text-muted-foreground max-w-[240px] truncate">
+                      {p.description ?? '—'}
+                    </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <Button
@@ -257,12 +330,46 @@ export function ShudhhamProductsPanel({
                       </Button>
                     </div>
                   </TableCell>
-                </TableRow>
-              ))
+                  </TableRow>
+                );
+              })
             )}
           </TableBody>
         </Table>
       </div>
+
+      {/* Floating Bulk Action Bar */}
+      {selectedIds.length > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-3 bg-foreground text-background px-4 py-2.5 rounded-full shadow-2xl border border-border/20 animate-in fade-in slide-in-from-bottom-4">
+          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-background/20">
+            {selectedIds.length} selected
+          </span>
+          <div className="h-4 w-px bg-background/20" />
+          <div className="flex items-center gap-2">
+            <span className="text-xs">Reassign Category:</span>
+            <Select onValueChange={handleBulkCategory}>
+              <SelectTrigger className="h-7 text-xs bg-background/10 border-background/20 text-background min-w-[130px]">
+                <SelectValue placeholder="Select category..." />
+              </SelectTrigger>
+              <SelectContent>
+                {categories.map((cat) => (
+                  <SelectItem key={cat} value={cat}>
+                    {cat}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            size="sm"
+            variant="ghost"
+            className="h-7 text-xs text-background/80 hover:text-background hover:bg-background/20"
+            onClick={() => setSelectedIds([])}
+          >
+            Clear
+          </Button>
+        </div>
+      )}
 
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="max-w-md">
@@ -274,10 +381,15 @@ export function ShudhhamProductsPanel({
               <Label>Name *</Label>
               <Input
                 value={form.name}
-                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                onChange={(e) => {
+                  setForm((f) => ({ ...f, name: e.target.value }));
+                  if (fieldErrors.name) setFieldErrors((prev) => ({ ...prev, name: '' }));
+                }}
                 required
                 placeholder="e.g. Ashwagandha Organic Powder"
+                className={fieldErrors.name ? 'border-destructive' : ''}
               />
+              {fieldErrors.name && <p className="text-xs text-destructive font-medium">{fieldErrors.name}</p>}
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
@@ -287,20 +399,28 @@ export function ShudhhamProductsPanel({
                   min={0}
                   step={0.01}
                   value={form.price}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))
-                  }
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }));
+                    if (fieldErrors.price) setFieldErrors((prev) => ({ ...prev, price: '' }));
+                  }}
                   required
+                  className={fieldErrors.price ? 'border-destructive' : ''}
                 />
+                {fieldErrors.price && <p className="text-xs text-destructive font-medium">{fieldErrors.price}</p>}
               </div>
               <div className="space-y-1.5">
                 <Label>Category *</Label>
                 <Input
                   value={form.category}
-                  onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                  onChange={(e) => {
+                    setForm((f) => ({ ...f, category: e.target.value }));
+                    if (fieldErrors.category) setFieldErrors((prev) => ({ ...prev, category: '' }));
+                  }}
                   required
                   placeholder="e.g. Oils"
+                  className={fieldErrors.category ? 'border-destructive' : ''}
                 />
+                {fieldErrors.category && <p className="text-xs text-destructive font-medium">{fieldErrors.category}</p>}
               </div>
             </div>
             <div className="space-y-1.5">
@@ -312,14 +432,12 @@ export function ShudhhamProductsPanel({
                 placeholder="Key benefits and ingredients"
               />
             </div>
-            <div className="space-y-1.5">
-              <Label>Image URL</Label>
-              <Input
-                value={form.image_url ?? ''}
-                onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value || null }))}
-                placeholder="https://…"
-              />
-            </div>
+            <ImageUpload
+              value={form.image_url}
+              onChange={(url) => setForm((f) => ({ ...f, image_url: url || null }))}
+              folder="shudhham"
+              label="Product Image"
+            />
 
             {error && <p className="text-sm text-destructive font-medium">{error}</p>}
 

@@ -10,6 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { ImageUpload } from '@/components/ui/image-upload';
 import { toast } from '@/hooks/use-toast';
 import {
   createPromotion,
@@ -327,14 +328,12 @@ export function PromotionsPanel({ promotions }: Props) {
               />
             </div>
 
-            <div className="space-y-1.5">
-              <Label>Image URL</Label>
-              <Input
-                value={form.image_url}
-                onChange={(e) => setForm((f) => ({ ...f, image_url: e.target.value }))}
-                placeholder="https://images.unsplash.com/..."
-              />
-            </div>
+            <ImageUpload
+              value={form.image_url}
+              onChange={(url) => setForm((f) => ({ ...f, image_url: url }))}
+              folder="houserve/promotions"
+              label="Banner Image"
+            />
 
             <label className="flex items-center gap-2 text-sm cursor-pointer pt-1">
               <input

@@ -13,8 +13,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { toast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { CreditCard, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { exportToCsv } from '@/lib/export-csv';
+import { CreditCard, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 interface PaymentItem {
   id: string;
@@ -89,6 +91,30 @@ export function PaymentsTable({
         <span className="text-sm text-muted-foreground ml-auto">
           {total} record{total !== 1 ? 's' : ''} · <strong className="text-foreground">{formatCurrency(totalRevenue)}</strong> collected
         </span>
+
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            const headers = ['Transaction ID', 'Customer', 'Amount', 'Status', 'Gateway Payment ID', 'Date'];
+            const rows = payments.map((p) => [
+              p.booking_ref || p.id,
+              p.customer?.full_name || '—',
+              p.total_amount,
+              p.payment_status,
+              p.stripe_payment_intent_id || p.razorpay_payment_id || p.payment_id || '—',
+              formatDate(p.created_at),
+            ]);
+            exportToCsv(`${workspace}_payments`, headers, rows);
+            toast({ title: 'Export Complete', description: `Exported ${rows.length} transactions to CSV.`, variant: 'success' });
+          }}
+          className="gap-1.5"
+          disabled={payments.length === 0}
+          aria-label="Export payments as CSV"
+        >
+          <Download className="h-4 w-4" />
+          Export CSV
+        </Button>
       </div>
 
       <div className={`rounded-xl border bg-card shadow-sm overflow-hidden transition-opacity ${isPending ? 'opacity-70' : 'opacity-100'}`}>
