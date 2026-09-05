@@ -37,7 +37,43 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
   const { page: pageStr } = await searchParams;
   const page = parseInt(pageStr ?? '1') || 1;
 
-  const { payments, total } = await fetchPayments(workspace, page);
+  const keyMap: Record<string, string> = {
+    shudhham: process.env.SHUDHHAM_SUPABASE_SERVICE_ROLE_KEY ?? '',
+    houserve: process.env.HOUSERVE_SUPABASE_SERVICE_ROLE_KEY ?? '',
+    buildkart: process.env.BUILDKART_SUPABASE_SERVICE_ROLE_KEY ?? '',
+  };
+  const envNameMap: Record<string, string> = {
+    shudhham: 'SHUDHHAM_SUPABASE_SERVICE_ROLE_KEY',
+    houserve: 'HOUSERVE_SUPABASE_SERVICE_ROLE_KEY',
+    buildkart: 'BUILDKART_SUPABASE_SERVICE_ROLE_KEY',
+  };
+
+  const key = keyMap[workspace] ?? '';
+  let payments: import('@/integrations/houserve/types').HouservePayment[] | import('@/integrations/shudhham/queries').ShudhhamPayment[] | import('@/integrations/buildkart/queries').BuildKartPayment[] = [];
+  let total = 0;
+  let isNotConfigured = false;
+
+  if (!key || key.includes('MISSING')) {
+    isNotConfigured = true;
+  } else {
+    try {
+      const res = await fetchPayments(workspace, page);
+      payments = res.payments;
+      total = res.total;
+    } catch {
+      isNotConfigured = true;
+    }
+  }
+
+  if (isNotConfigured) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Payments" description={ws.name} />
+        <NotConfiguredCard workspaceName={ws.name} envKey={envNameMap[workspace] ?? 'SERVICE_ROLE_KEY'} />
+      </div>
+    );
+  }
 
   // Compute summary
   const paid = payments.filter((p) => p.payment_status === 'paid');

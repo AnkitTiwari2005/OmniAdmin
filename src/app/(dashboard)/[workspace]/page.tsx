@@ -73,107 +73,129 @@ async function ShudhhamDashboard({ accentHex }: { accentHex: string }) {
 }
 
 async function HouserveDashboard({ accentHex }: { accentHex: string }) {
-  const [kpis, recentBookings, chartData] = await Promise.all([
-    getHouserveDashboardKPIs(),
-    getHouserveRecentBookings(5),
-    getHouserveWeeklyChart(),
-  ]);
+  const key = process.env.HOUSERVE_SUPABASE_SERVICE_ROLE_KEY;
+  if (!key || key.includes('MISSING')) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />;
+  }
 
-  // Dynamic import of client chart component (Recharts requires browser)
-  const { HouserveCharts } = await import('@/components/houserve/HouserveCharts');
+  try {
+    const [kpis, recentBookings, chartData] = await Promise.all([
+      getHouserveDashboardKPIs(),
+      getHouserveRecentBookings(5),
+      getHouserveWeeklyChart(),
+    ]);
 
-  return (
-    <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          label="Bookings Today"
-          value={kpis.bookingsToday.toString()}
-          icon={Calendar}
-          accentHex={accentHex}
-        />
-        <StatCard
-          label="Revenue This Week"
-          value={formatCurrency(kpis.revenueThisWeek)}
-          sub={`${kpis.revenueTrend > 0 ? '+' : ''}${kpis.revenueTrend}% vs last week`}
-          trend={kpis.revenueTrend}
-          icon={TrendingUp}
-          accentHex={accentHex}
-        />
-        <StatCard
-          label="Customers"
-          value={kpis.totalCustomers.toLocaleString()}
-          icon={Users}
-          accentHex={accentHex}
-        />
-        <StatCard
-          label="Pending Bookings"
-          value={kpis.pendingBookings.toString()}
-          sub={`${kpis.activeBookings} active right now`}
-          trend={kpis.pendingBookings > 0 ? -1 : 0}
-          icon={AlertCircle}
-          accentHex={accentHex}
-        />
-      </div>
+    // Dynamic import of client chart component (Recharts requires browser)
+    const { HouserveCharts } = await import('@/components/houserve/HouserveCharts');
 
-      <HouserveCharts data={chartData} accentHex={accentHex} />
+    return (
+      <>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard
+            label="Bookings Today"
+            value={kpis.bookingsToday.toString()}
+            icon={Calendar}
+            accentHex={accentHex}
+          />
+          <StatCard
+            label="Revenue This Week"
+            value={formatCurrency(kpis.revenueThisWeek)}
+            sub={`${kpis.revenueTrend > 0 ? '+' : ''}${kpis.revenueTrend}% vs last week`}
+            trend={kpis.revenueTrend}
+            icon={TrendingUp}
+            accentHex={accentHex}
+          />
+          <StatCard
+            label="Customers"
+            value={kpis.totalCustomers.toLocaleString()}
+            icon={Users}
+            accentHex={accentHex}
+          />
+          <StatCard
+            label="Pending Bookings"
+            value={kpis.pendingBookings.toString()}
+            sub={`${kpis.activeBookings} active right now`}
+            trend={kpis.pendingBookings > 0 ? -1 : 0}
+            icon={AlertCircle}
+            accentHex={accentHex}
+          />
+        </div>
 
-      <RecentTable
-        title="Recent Bookings"
-        headers={['Ref', 'Amount', 'Status', 'Date']}
-        rows={recentBookings.map((b) => [
-          b.booking_ref,
-          formatCurrency(b.total_amount),
-          <StatusBadge key={b.id} status={b.status} />,
-          formatDate(b.scheduled_date),
-        ])}
-        emptyMessage="No bookings yet"
-        viewAllHref="bookings"
-      />
-    </>
-  );
+        <HouserveCharts data={chartData} accentHex={accentHex} />
+
+        <RecentTable
+          title="Recent Bookings"
+          headers={['Ref', 'Amount', 'Status', 'Date']}
+          rows={recentBookings.map((b) => [
+            b.booking_ref,
+            formatCurrency(b.total_amount),
+            <StatusBadge key={b.id} status={b.status} />,
+            formatDate(b.scheduled_date),
+          ])}
+          emptyMessage="No bookings yet"
+          viewAllHref="bookings"
+        />
+      </>
+    );
+  } catch (err: unknown) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />;
+  }
 }
 
 async function BuildKartDashboard({ accentHex }: { accentHex: string }) {
-  const [kpis, recentOrders, chartData] = await Promise.all([
-    getBuildKartDashboardKPIs(),
-    getBuildKartRecentOrders(5),
-    getBuildKartWeeklyChart(),
-  ]);
-  const { GenericOrderCharts } = await import('@/components/shared/GenericOrderCharts');
+  const key = process.env.BUILDKART_SUPABASE_SERVICE_ROLE_KEY;
+  if (!key || key.includes('MISSING')) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return <NotConfiguredCard workspaceName="BuildKart" envKey="BUILDKART_SUPABASE_SERVICE_ROLE_KEY" />;
+  }
 
-  return (
-    <>
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard label="Orders Today" value={kpis.ordersToday.toString()} icon={ShoppingCart} accentHex={accentHex} />
-        <StatCard
-          label="Revenue This Week" value={formatCurrency(kpis.revenueThisWeek)}
-          sub={`${kpis.revenueTrend > 0 ? '+' : ''}${kpis.revenueTrend}% vs last week`}
-          trend={kpis.revenueTrend} icon={TrendingUp} accentHex={accentHex}
+  try {
+    const [kpis, recentOrders, chartData] = await Promise.all([
+      getBuildKartDashboardKPIs(),
+      getBuildKartRecentOrders(5),
+      getBuildKartWeeklyChart(),
+    ]);
+    const { GenericOrderCharts } = await import('@/components/shared/GenericOrderCharts');
+
+    return (
+      <>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <StatCard label="Orders Today" value={kpis.ordersToday.toString()} icon={ShoppingCart} accentHex={accentHex} />
+          <StatCard
+            label="Revenue This Week" value={formatCurrency(kpis.revenueThisWeek)}
+            sub={`${kpis.revenueTrend > 0 ? '+' : ''}${kpis.revenueTrend}% vs last week`}
+            trend={kpis.revenueTrend} icon={TrendingUp} accentHex={accentHex}
+          />
+          <StatCard label="Active Products" value={kpis.totalProducts.toLocaleString()} icon={Package} accentHex={accentHex} />
+          <StatCard
+            label="Pending Orders" value={kpis.pendingOrders.toString()}
+            sub={kpis.pendingOrders > 0 ? 'Needs attention' : 'All clear'}
+            trend={kpis.pendingOrders > 0 ? -1 : 0} icon={AlertCircle} accentHex={accentHex}
+          />
+        </div>
+
+        <GenericOrderCharts data={chartData} accentHex={accentHex} />
+
+        <RecentTable
+          title="Recent Orders"
+          headers={['Order ID', 'Amount', 'Status', 'Date']}
+          rows={recentOrders.map((o) => [
+            o.id.slice(0, 8) + '…',
+            formatCurrency(o.total),
+            <StatusBadge key={o.id} status={o.status} />,
+            formatDate(o.created_at),
+          ])}
+          emptyMessage="No orders yet"
+          viewAllHref="orders"
         />
-        <StatCard label="Active Products" value={kpis.totalProducts.toLocaleString()} icon={Package} accentHex={accentHex} />
-        <StatCard
-          label="Pending Orders" value={kpis.pendingOrders.toString()}
-          sub={kpis.pendingOrders > 0 ? 'Needs attention' : 'All clear'}
-          trend={kpis.pendingOrders > 0 ? -1 : 0} icon={AlertCircle} accentHex={accentHex}
-        />
-      </div>
-
-      <GenericOrderCharts data={chartData} accentHex={accentHex} />
-
-      <RecentTable
-        title="Recent Orders"
-        headers={['Order ID', 'Amount', 'Status', 'Date']}
-        rows={recentOrders.map((o) => [
-          o.id.slice(0, 8) + '…',
-          formatCurrency(o.total),
-          <StatusBadge key={o.id} status={o.status} />,
-          formatDate(o.created_at),
-        ])}
-        emptyMessage="No orders yet"
-        viewAllHref="orders"
-      />
-    </>
-  );
+      </>
+    );
+  } catch (err: unknown) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return <NotConfiguredCard workspaceName="BuildKart" envKey="BUILDKART_SUPABASE_SERVICE_ROLE_KEY" />;
+  }
 }
 
 // ── Reusable status badge ─────────────────────────────────────

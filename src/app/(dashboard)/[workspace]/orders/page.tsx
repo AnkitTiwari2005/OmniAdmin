@@ -43,7 +43,37 @@ export default async function OrdersPage({ params, searchParams }: PageProps) {
   const { status, page: pageStr } = await searchParams;
   const page = parseInt(pageStr ?? '1') || 1;
 
-  const { orders, total } = await fetchOrders(workspace, { status, page });
+  let orders: unknown[] = [];
+  let total = 0;
+  let isNotConfigured = false;
+
+  const key = workspace === 'shudhham'
+    ? process.env.SHUDHHAM_SUPABASE_SERVICE_ROLE_KEY
+    : process.env.BUILDKART_SUPABASE_SERVICE_ROLE_KEY;
+
+  if (!key || key.includes('MISSING')) {
+    isNotConfigured = true;
+  } else {
+    try {
+      const res = await fetchOrders(workspace, { status, page });
+      orders = res.orders;
+      total = res.total;
+    } catch {
+      isNotConfigured = true;
+    }
+  }
+
+  if (isNotConfigured) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    const envKey = workspace === 'shudhham' ? 'SHUDHHAM_SUPABASE_SERVICE_ROLE_KEY' : 'BUILDKART_SUPABASE_SERVICE_ROLE_KEY';
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Orders" description={ws.name} />
+        <NotConfiguredCard workspaceName={ws.name} envKey={envKey} />
+      </div>
+    );
+  }
+
   const statuses = workspace === 'shudhham' ? SHUDHHAM_STATUSES : BUILDKART_STATUSES;
 
   return (

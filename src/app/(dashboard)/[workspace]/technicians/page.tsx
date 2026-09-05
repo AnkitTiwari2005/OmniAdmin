@@ -19,7 +19,29 @@ export default async function TechniciansPage({ params }: PageProps) {
   const ws = getWorkspaceOrNull(workspace);
   if (!ws) notFound();
 
-  const technicians = await getHouserveTechnicians();
+  const key = process.env.HOUSERVE_SUPABASE_SERVICE_ROLE_KEY;
+  if (!key || key.includes('MISSING')) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Technicians" description="Houserve" />
+        <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />
+      </div>
+    );
+  }
+
+  let technicians: import('@/integrations/houserve/types').HouserveTechnician[] = [];
+  try {
+    technicians = await getHouserveTechnicians();
+  } catch {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Technicians" description="Houserve" />
+        <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />
+      </div>
+    );
+  }
   const busyCount = technicians.filter((t) => (t.active_bookings ?? 0) > 0).length;
 
   return (

@@ -18,33 +18,54 @@ export default async function ProductsPage({ params, searchParams }: PageProps) 
   const page = parseInt(pageStr ?? '1') || 1;
 
   if (workspace === 'buildkart') {
-    const [{ getBuildKartProducts, getBuildKartCategories }] = await Promise.all([
-      import('@/integrations/buildkart/queries'),
-    ]);
-    const [{ products, total }, allCategories] = await Promise.all([
-      getBuildKartProducts({ category, search: q, page }),
-      getBuildKartCategories(),
-    ]);
-    const categoryNames = [...new Set(products.map((p) => p.category))].sort();
-    // Merge from all categories table too
-    const allCategoryNames = [...new Set([
-      ...allCategories.map((c) => c.name),
-      ...categoryNames,
-    ])].sort();
+    const key = process.env.BUILDKART_SUPABASE_SERVICE_ROLE_KEY;
+    if (!key || key.includes('MISSING')) {
+      const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+      return (
+        <div className="flex flex-col gap-6 p-6">
+          <PageHeader title="Products" description="BuildKart" />
+          <NotConfiguredCard workspaceName="BuildKart" envKey="BUILDKART_SUPABASE_SERVICE_ROLE_KEY" />
+        </div>
+      );
+    }
 
-    const { BuildKartProductsPanel } = await import('@/components/products/BuildKartProductsPanel');
-    return (
-      <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="Products" description={`BuildKart · ${total} total`} />
-        <BuildKartProductsPanel
-          products={products}
-          total={total}
-          categories={allCategoryNames}
-          currentCategory={category ?? ''}
-          currentSearch={q ?? ''}
-        />
-      </div>
-    );
+    try {
+      const [{ getBuildKartProducts, getBuildKartCategories }] = await Promise.all([
+        import('@/integrations/buildkart/queries'),
+      ]);
+      const [{ products, total }, allCategories] = await Promise.all([
+        getBuildKartProducts({ category, search: q, page }),
+        getBuildKartCategories(),
+      ]);
+      const categoryNames = [...new Set(products.map((p) => p.category))].sort();
+      // Merge from all categories table too
+      const allCategoryNames = [...new Set([
+        ...allCategories.map((c) => c.name),
+        ...categoryNames,
+      ])].sort();
+
+      const { BuildKartProductsPanel } = await import('@/components/products/BuildKartProductsPanel');
+      return (
+        <div className="flex flex-col gap-6 p-6">
+          <PageHeader title="Products" description={`BuildKart · ${total} total`} />
+          <BuildKartProductsPanel
+            products={products}
+            total={total}
+            categories={allCategoryNames}
+            currentCategory={category ?? ''}
+            currentSearch={q ?? ''}
+          />
+        </div>
+      );
+    } catch {
+      const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+      return (
+        <div className="flex flex-col gap-6 p-6">
+          <PageHeader title="Products" description="BuildKart" />
+          <NotConfiguredCard workspaceName="BuildKart" envKey="BUILDKART_SUPABASE_SERVICE_ROLE_KEY" />
+        </div>
+      );
+    }
   }
 
   if (workspace === 'shudhham') {

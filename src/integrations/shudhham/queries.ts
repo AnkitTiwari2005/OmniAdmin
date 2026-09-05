@@ -109,16 +109,19 @@ export async function getShudhhamPayments(page = 1, limit = 30): Promise<{ payme
   const offset = (page - 1) * limit;
   const { data, count, error } = await db
     .from('orders')
-    .select('id, full_name, total_amount, status, payment_status, payment_intent_id, created_at', { count: 'exact' })
+    .select('id, full_name, total_amount, status, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw error;
 
   const payments = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({
-    ...o,
-    payment_status: (o.payment_status ?? o.status ?? 'unknown') as string,
-    stripe_payment_intent_id: o.payment_intent_id as string | null,
-    payment_id: o.payment_intent_id as string | null,
+    id: o.id as string,
+    full_name: o.full_name as string | null,
+    total_amount: Number(o.total_amount) || 0,
+    payment_status: (o.status ?? 'completed') as string,
+    stripe_payment_intent_id: null,
+    payment_id: (o.id as string).slice(0, 12),
+    created_at: o.created_at as string,
     customer: { full_name: o.full_name as string | null, email: null },
   })) as ShudhhamPayment[];
 
@@ -145,7 +148,7 @@ export async function getShudhhamOrders(
 
   let query = db
     .from('orders')
-    .select('id, full_name, total_amount, status, payment_status, created_at', { count: 'exact' })
+    .select('id, full_name, total_amount, status, created_at', { count: 'exact' })
     .order('created_at', { ascending: false })
     .range(offset, offset + limit - 1);
 
@@ -156,7 +159,15 @@ export async function getShudhhamOrders(
 
   const { data, count, error } = await query;
   if (error) throw error;
-  return { orders: (data ?? []) as ShudhhamOrder[], total: count ?? 0 };
+  const orders = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({
+    id: o.id as string,
+    full_name: o.full_name as string | null,
+    total_amount: Number(o.total_amount) || 0,
+    status: (o.status as string) || 'processing',
+    payment_status: (o.status as string) || 'completed',
+    created_at: o.created_at as string,
+  }));
+  return { orders, total: count ?? 0 };
 }
 
 // ── Weekly chart data ─────────────────────────────────────────

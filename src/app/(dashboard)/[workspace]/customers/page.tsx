@@ -40,7 +40,43 @@ export default async function CustomersPage({ params, searchParams }: PageProps)
   const page = parseInt(pageStr ?? '1') || 1;
   const PAGE_SIZE = 30;
 
-  const { customers, total } = await fetchCustomers(workspace, page);
+  const keyMap: Record<string, string> = {
+    shudhham: process.env.SHUDHHAM_SUPABASE_SERVICE_ROLE_KEY ?? '',
+    houserve: process.env.HOUSERVE_SUPABASE_SERVICE_ROLE_KEY ?? '',
+    buildkart: process.env.BUILDKART_SUPABASE_SERVICE_ROLE_KEY ?? '',
+  };
+  const envNameMap: Record<string, string> = {
+    shudhham: 'SHUDHHAM_SUPABASE_SERVICE_ROLE_KEY',
+    houserve: 'HOUSERVE_SUPABASE_SERVICE_ROLE_KEY',
+    buildkart: 'BUILDKART_SUPABASE_SERVICE_ROLE_KEY',
+  };
+
+  const key = keyMap[workspace] ?? '';
+  let customers: import('@/integrations/houserve/types').HouserveCustomer[] | import('@/integrations/shudhham/queries').ShudhhamCustomer[] | import('@/integrations/buildkart/queries').BuildKartCustomer[] = [];
+  let total = 0;
+  let isNotConfigured = false;
+
+  if (!key || key.includes('MISSING')) {
+    isNotConfigured = true;
+  } else {
+    try {
+      const res = await fetchCustomers(workspace, page);
+      customers = res.customers;
+      total = res.total;
+    } catch {
+      isNotConfigured = true;
+    }
+  }
+
+  if (isNotConfigured) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Customers" description={ws.name} />
+        <NotConfiguredCard workspaceName={ws.name} envKey={envNameMap[workspace] ?? 'SERVICE_ROLE_KEY'} />
+      </div>
+    );
+  }
   const totalPages = Math.ceil(total / PAGE_SIZE);
 
   return (

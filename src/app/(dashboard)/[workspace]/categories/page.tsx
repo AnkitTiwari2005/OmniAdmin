@@ -17,16 +17,37 @@ export default async function CategoriesPage({ params }: PageProps) {
   const ws = getWorkspaceOrNull(workspace);
   if (!ws) notFound();
 
-  const categories = await getBuildKartCategories();
-  const activeCount = categories.filter((c) => c.is_active).length;
+  const key = process.env.BUILDKART_SUPABASE_SERVICE_ROLE_KEY;
+  if (!key || key.includes('MISSING')) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Categories" description="BuildKart" />
+        <NotConfiguredCard workspaceName="BuildKart" envKey="BUILDKART_SUPABASE_SERVICE_ROLE_KEY" />
+      </div>
+    );
+  }
 
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="Categories"
-        description={`BuildKart · ${categories.length} total · ${activeCount} active`}
-      />
-      <CategoriesPanel categories={categories} />
-    </div>
-  );
+  try {
+    const categories = await getBuildKartCategories();
+    const activeCount = categories.filter((c) => c.is_active).length;
+
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader
+          title="Categories"
+          description={`BuildKart · ${categories.length} total · ${activeCount} active`}
+        />
+        <CategoriesPanel categories={categories} />
+      </div>
+    );
+  } catch {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Categories" description="BuildKart" />
+        <NotConfiguredCard workspaceName="BuildKart" envKey="BUILDKART_SUPABASE_SERVICE_ROLE_KEY" />
+      </div>
+    );
+  }
 }

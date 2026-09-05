@@ -17,18 +17,38 @@ export default async function ServicesPage({ params }: PageProps) {
   const ws = getWorkspaceOrNull(workspace);
   if (!ws) notFound();
 
-  const services = await getHouserveServices();
+  const key = process.env.HOUSERVE_SUPABASE_SERVICE_ROLE_KEY;
+  if (!key || key.includes('MISSING')) {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Services" description="Houserve" />
+        <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />
+      </div>
+    );
+  }
 
-  const categories = [...new Set(services.map((s) => s.category))];
-  const activeCount = services.filter((s) => s.is_active).length;
+  try {
+    const services = await getHouserveServices();
+    const categories = [...new Set(services.map((s) => s.category))];
+    const activeCount = services.filter((s) => s.is_active).length;
 
-  return (
-    <div className="flex flex-col gap-6 p-6">
-      <PageHeader
-        title="Services"
-        description={`${services.length} total · ${activeCount} active · ${categories.length} categories`}
-      />
-      <ServicesPanel services={services} />
-    </div>
-  );
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader
+          title="Services"
+          description={`${services.length} total · ${activeCount} active · ${categories.length} categories`}
+        />
+        <ServicesPanel services={services} />
+      </div>
+    );
+  } catch {
+    const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <PageHeader title="Services" description="Houserve" />
+        <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />
+      </div>
+    );
+  }
 }
