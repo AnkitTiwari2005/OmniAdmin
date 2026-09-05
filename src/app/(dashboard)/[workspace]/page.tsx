@@ -60,13 +60,18 @@ async function ShudhhamDashboard({ accentHex }: { accentHex: string }) {
         title="Recent Orders"
         headers={['Customer', 'Amount', 'Status', 'Date']}
         rows={recentOrders.map((o) => [
-          o.full_name ?? '—',
-          formatCurrency(o.total_amount),
+          <div key={o.id} className="flex items-center gap-2.5 min-w-0">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+              {(o.full_name || 'G')[0].toUpperCase()}
+            </span>
+            <span className="font-semibold text-foreground truncate">{o.full_name ?? 'Guest User'}</span>
+          </div>,
+          <span key={o.id} className="font-bold tabular-nums text-foreground">{formatCurrency(o.total_amount)}</span>,
           <StatusBadge key={o.id} status={o.status} />,
-          formatDate(o.created_at),
+          <span key={o.id} className="text-muted-foreground tabular-nums">{formatDate(o.created_at)}</span>,
         ])}
         emptyMessage="No orders yet"
-        viewAllHref="orders"
+        viewAllHref="/shudhham/orders"
       />
     </>
   );
@@ -128,13 +133,13 @@ async function HouserveDashboard({ accentHex }: { accentHex: string }) {
           title="Recent Bookings"
           headers={['Ref', 'Amount', 'Status', 'Date']}
           rows={recentBookings.map((b) => [
-            b.booking_ref,
-            formatCurrency(b.total_amount),
+            <span key={b.id} className="font-mono font-semibold text-foreground">{b.booking_ref}</span>,
+            <span key={b.id} className="font-bold tabular-nums text-foreground">{formatCurrency(b.total_amount)}</span>,
             <StatusBadge key={b.id} status={b.status} />,
-            formatDate(b.scheduled_date),
+            <span key={b.id} className="text-muted-foreground tabular-nums">{formatDate(b.scheduled_date)}</span>,
           ])}
           emptyMessage="No bookings yet"
-          viewAllHref="bookings"
+          viewAllHref="/houserve/bookings"
         />
       </>
     );
@@ -182,13 +187,13 @@ async function BuildKartDashboard({ accentHex }: { accentHex: string }) {
           title="Recent Orders"
           headers={['Order ID', 'Amount', 'Status', 'Date']}
           rows={recentOrders.map((o) => [
-            o.id.slice(0, 8) + '…',
-            formatCurrency(o.total),
+            <span key={o.id} className="font-mono font-semibold text-foreground">#{o.id.slice(0, 8)}</span>,
+            <span key={o.id} className="font-bold tabular-nums text-foreground">{formatCurrency(o.total)}</span>,
             <StatusBadge key={o.id} status={o.status} />,
-            formatDate(o.created_at),
+            <span key={o.id} className="text-muted-foreground tabular-nums">{formatDate(o.created_at)}</span>,
           ])}
           emptyMessage="No orders yet"
-          viewAllHref="orders"
+          viewAllHref="/buildkart/orders"
         />
       </>
     );

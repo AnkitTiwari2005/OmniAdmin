@@ -1,9 +1,8 @@
 import Link from 'next/link';
 import { requireAdmin } from '@/lib/auth';
-import { formatCurrency } from '@/lib/utils';
+import { formatCurrency, formatDate, relativeTime } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import {
   getShudhhamDashboardKPIs,
@@ -27,6 +26,11 @@ import {
   Hammer,
   DollarSign,
   Activity,
+  Clock,
+  ExternalLink,
+  ChevronRight,
+  Calendar,
+  Package,
 } from 'lucide-react';
 
 export const revalidate = 30; // 30 second cache for overview
@@ -81,16 +85,16 @@ export default async function OverviewPage() {
   const adminFirstName = admin.full_name?.split(' ')[0] ?? 'Admin';
 
   return (
-    <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in-50 duration-500">
+    <div className="p-5 md:p-8 max-w-7xl mx-auto space-y-8 animate-in fade-in-50 duration-500">
       {/* Executive Command Hero Banner */}
-      <div className="glass-card card-highlight relative overflow-hidden rounded-3xl p-6 md:p-8 border border-border/60 bg-gradient-to-br from-card via-card/95 to-indigo-950/10 shadow-xs">
-        {/* Ambient background glow orb */}
+      <div className="glass-card card-highlight relative overflow-hidden rounded-3xl p-6 md:p-8 border border-border/60 bg-gradient-to-br from-card via-card/95 to-indigo-950/10 shadow-sm">
+        {/* Ambient background glow orbs */}
         <div className="pointer-events-none absolute -right-20 -top-20 h-72 w-72 rounded-full bg-indigo-500/10 blur-3xl" />
         <div className="pointer-events-none absolute right-1/3 -bottom-20 h-64 w-64 rounded-full bg-emerald-500/10 blur-3xl" />
 
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-center gap-2.5">
+        <div className="relative z-10 flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
+          <div className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
               <Badge variant="indigo" dot pulse className="px-3 py-1 font-medium">
                 Executive Command Center
               </Badge>
@@ -99,18 +103,45 @@ export default async function OverviewPage() {
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                   <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
                 </span>
-                All 3 Enterprises Live & Connected
+                3 Enterprises Active & Syncing
               </span>
             </div>
+
             <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-foreground">
               Good day, {adminFirstName}
             </h1>
             <p className="text-sm text-muted-foreground max-w-2xl font-normal leading-relaxed">
-              Unified cross-portfolio operations and aggregated real-time metrics across{' '}
+              Unified cross-portfolio operations across{' '}
               <span className="font-semibold text-foreground/90">Shudhham</span>,{' '}
               <span className="font-semibold text-foreground/90">Houserve</span>, and{' '}
               <span className="font-semibold text-foreground/90">BuildKart</span>.
             </p>
+
+            {/* Quick 1-Click Workspace Jump Chips */}
+            <div className="pt-1 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium mr-1">Quick jump:</span>
+              <Link href="/shudhham">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:text-emerald-400 hover:bg-emerald-500/20 transition-colors">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Shudhham
+                  <ChevronRight className="h-3 w-3 opacity-60" />
+                </span>
+              </Link>
+              <Link href="/houserve">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-xs font-medium text-sky-700 dark:text-sky-400 hover:bg-sky-500/20 transition-colors">
+                  <span className="h-1.5 w-1.5 rounded-full bg-sky-500" />
+                  Houserve
+                  <ChevronRight className="h-3 w-3 opacity-60" />
+                </span>
+              </Link>
+              <Link href="/buildkart">
+                <span className="inline-flex items-center gap-1.5 rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1 text-xs font-medium text-amber-700 dark:text-amber-400 hover:bg-amber-500/20 transition-colors">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  BuildKart
+                  <ChevronRight className="h-3 w-3 opacity-60" />
+                </span>
+              </Link>
+            </div>
           </div>
 
           <div className="flex items-center gap-3 shrink-0">
@@ -128,7 +159,7 @@ export default async function OverviewPage() {
               <Link href="/team">
                 <Button
                   size="sm"
-                  className="gap-2 rounded-xl shadow-xs transition-all active:scale-[0.98] bg-primary text-primary-foreground hover:bg-primary/90"
+                  className="gap-2 rounded-xl shadow-sm transition-all active:scale-[0.98] bg-primary text-primary-foreground hover:bg-primary/90"
                 >
                   <Users className="h-4 w-4" />
                   <span>Manage Team</span>
@@ -268,24 +299,24 @@ export default async function OverviewPage() {
 
               <div className="grid grid-cols-2 gap-2.5 text-sm">
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Today's Orders</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">{shudhhamKPIs?.ordersToday ?? 0}</p>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today's Orders</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">{shudhhamKPIs?.ordersToday ?? 0}</p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">7-Day Revenue</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">7-Day Revenue</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
                     {formatCurrency(shudhhamKPIs?.revenueThisWeek ?? 0)}
                   </p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Pending Orders</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums text-amber-600 dark:text-amber-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pending Orders</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums text-amber-600 dark:text-amber-400">
                     {shudhhamKPIs?.pendingOrders ?? 0}
                   </p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Customers</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Customers</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
                     {shudhhamKPIs?.totalCustomers ?? 0}
                   </p>
                 </div>
@@ -330,24 +361,24 @@ export default async function OverviewPage() {
 
               <div className="grid grid-cols-2 gap-2.5 text-sm">
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Today's Bookings</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">{houserveKPIs?.bookingsToday ?? 0}</p>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today's Bookings</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">{houserveKPIs?.bookingsToday ?? 0}</p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">7-Day Revenue</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">7-Day Revenue</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
                     {formatCurrency(houserveKPIs?.revenueThisWeek ?? 0)}
                   </p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Pending Bookings</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums text-amber-600 dark:text-amber-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pending Bookings</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums text-amber-600 dark:text-amber-400">
                     {houserveKPIs?.pendingBookings ?? 0}
                   </p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Active in Field</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums text-sky-600 dark:text-sky-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Active in Field</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums text-sky-600 dark:text-sky-400">
                     {houserveKPIs?.activeBookings ?? 0}
                   </p>
                 </div>
@@ -392,24 +423,24 @@ export default async function OverviewPage() {
 
               <div className="grid grid-cols-2 gap-2.5 text-sm">
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Today's Orders</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">{buildkartKPIs?.ordersToday ?? 0}</p>
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Today's Orders</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">{buildkartKPIs?.ordersToday ?? 0}</p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">7-Day Revenue</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">7-Day Revenue</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
                     {formatCurrency(buildkartKPIs?.revenueThisWeek ?? 0)}
                   </p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Pending Orders</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums text-amber-600 dark:text-amber-400">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Pending Orders</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums text-amber-600 dark:text-amber-400">
                     {buildkartKPIs?.pendingOrders ?? 0}
                   </p>
                 </div>
                 <div className="bg-muted/40 group-hover:bg-muted/60 p-3 rounded-xl border border-border/30 transition-colors">
-                  <span className="text-[11px] font-medium text-muted-foreground">Active Catalog</span>
-                  <p className="text-lg font-bold mt-0.5 tabular-nums">
+                  <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Active Catalog</span>
+                  <p className="text-lg font-bold mt-1 tabular-nums">
                     {buildkartKPIs?.totalProducts ?? 0}
                   </p>
                 </div>
@@ -434,7 +465,7 @@ export default async function OverviewPage() {
         </div>
       </div>
 
-      {/* Live Recent Transactions Feed (3 Columns) */}
+      {/* Live Recent Transactions Feed (Redesigned Stream — No Cropping, Zero Scrollbars) */}
       <div className="space-y-4">
         <div>
           <h2 className="text-lg font-bold tracking-tight">Real-Time Transactions Stream</h2>
@@ -442,8 +473,8 @@ export default async function OverviewPage() {
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Shudhham Recent Orders */}
-          <div className="glass-card card-highlight rounded-2xl border border-border/50 overflow-hidden shadow-xs flex flex-col">
+          {/* Shudhham Recent Orders Stream */}
+          <div className="glass-card card-highlight rounded-2xl border border-border/50 overflow-hidden shadow-sm flex flex-col">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/40 bg-muted/20">
               <div className="flex items-center gap-2.5">
                 <span className="relative flex h-2 w-2">
@@ -454,71 +485,72 @@ export default async function OverviewPage() {
               </div>
               <Link
                 href="/shudhham/orders"
-                className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1"
+                className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 group"
               >
-                View all →
+                <span>View all</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
               </Link>
             </div>
 
-            <div className="flex-1 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border/30 hover:bg-transparent">
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5">Customer</TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5">Amount</TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5 text-right">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {shudhhamOrders.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-xs text-muted-foreground">
-                        No recent orders found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    shudhhamOrders.map((o) => (
-                      <TableRow key={o.id} className="border-border/30 hover:bg-muted/40 transition-colors">
-                        <TableCell className="py-3">
-                          <div className="flex items-center gap-2 min-w-0">
-                            <Avatar className="h-6 w-6 shrink-0 ring-1 ring-border/40">
-                              <AvatarFallback className="text-[10px] bg-emerald-500/10 text-emerald-600 font-semibold">
-                                {(o.full_name || 'G')[0].toUpperCase()}
-                              </AvatarFallback>
-                            </Avatar>
-                            <span className="text-xs font-semibold truncate max-w-[110px]">
-                              {o.full_name || 'Guest User'}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold tabular-nums py-3">
-                          {formatCurrency(o.total_amount)}
-                        </TableCell>
-                        <TableCell className="text-right py-3">
-                          <Badge
-                            variant={
-                              o.status === 'delivered' || o.status === 'completed'
-                                ? 'success'
-                                : o.status === 'cancelled'
-                                ? 'destructive'
-                                : 'warning'
-                            }
-                            dot
-                            className="text-[10px] capitalize px-2 py-0.5"
-                          >
-                            {o.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+            <div className="flex-1 divide-y divide-border/30">
+              {shudhhamOrders.length === 0 ? (
+                <div className="text-center py-10 px-4">
+                  <div className="h-10 w-10 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-2 text-muted-foreground">
+                    <ShoppingBag className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground">No recent orders found</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Incoming orders will appear here automatically</p>
+                </div>
+              ) : (
+                shudhhamOrders.map((o) => (
+                  <Link
+                    key={o.id}
+                    href="/shudhham/orders"
+                    className="group flex items-center justify-between p-3.5 hover:bg-muted/40 transition-colors duration-150"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 pr-2">
+                      <Avatar className="h-8 w-8 shrink-0 ring-1 ring-border/50 group-hover:scale-105 transition-transform">
+                        <AvatarFallback className="text-[11px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                          {(o.full_name || 'G')[0].toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="min-w-0">
+                        <p className="text-xs font-semibold text-foreground truncate group-hover:text-emerald-600 dark:group-hover:text-emerald-400 transition-colors">
+                          {o.full_name || 'Guest Customer'}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 font-medium">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span>{relativeTime(o.created_at)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end shrink-0 gap-1 text-right">
+                      <span className="text-xs font-bold tabular-nums text-foreground">
+                        {formatCurrency(o.total_amount)}
+                      </span>
+                      <Badge
+                        variant={
+                          o.status === 'delivered' || o.status === 'completed'
+                            ? 'success'
+                            : o.status === 'cancelled'
+                            ? 'destructive'
+                            : 'warning'
+                        }
+                        dot
+                        pulse={o.status === 'processing' || o.status === 'shipped'}
+                        className="text-[10px] capitalize px-2 py-0 font-medium"
+                      >
+                        {o.status}
+                      </Badge>
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
 
-          {/* Houserve Recent Bookings */}
-          <div className="glass-card card-highlight rounded-2xl border border-border/50 overflow-hidden shadow-xs flex flex-col">
+          {/* Houserve Recent Bookings Stream */}
+          <div className="glass-card card-highlight rounded-2xl border border-border/50 overflow-hidden shadow-sm flex flex-col">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/40 bg-muted/20">
               <div className="flex items-center gap-2.5">
                 <span className="relative flex h-2 w-2">
@@ -529,64 +561,72 @@ export default async function OverviewPage() {
               </div>
               <Link
                 href="/houserve/bookings"
-                className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1"
+                className="text-[11px] font-semibold text-sky-600 dark:text-sky-400 hover:underline flex items-center gap-1 group"
               >
-                View all →
+                <span>View all</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
               </Link>
             </div>
 
-            <div className="flex-1 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border/30 hover:bg-transparent">
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5">Reference</TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5">Amount</TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5 text-right">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {houserveBookings.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-xs text-muted-foreground">
-                        No recent bookings found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    houserveBookings.map((b) => (
-                      <TableRow key={b.id} className="border-border/30 hover:bg-muted/40 transition-colors">
-                        <TableCell className="py-3 font-mono text-xs font-medium text-foreground">
+            <div className="flex-1 divide-y divide-border/30">
+              {houserveBookings.length === 0 ? (
+                <div className="text-center py-10 px-4">
+                  <div className="h-10 w-10 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-2 text-muted-foreground">
+                    <Calendar className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground">No recent bookings found</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Incoming bookings will appear here automatically</p>
+                </div>
+              ) : (
+                houserveBookings.map((b) => (
+                  <Link
+                    key={b.id}
+                    href="/houserve/bookings"
+                    className="group flex items-center justify-between p-3.5 hover:bg-muted/40 transition-colors duration-150"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 pr-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-sky-500/20 bg-sky-500/10 text-sky-600 shadow-2xs group-hover:scale-105 transition-transform">
+                        <Wrench className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-mono font-semibold text-foreground truncate group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors">
                           {b.booking_ref || b.id.slice(0, 8)}
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold tabular-nums py-3">
-                          {formatCurrency(b.total_amount)}
-                        </TableCell>
-                        <TableCell className="text-right py-3">
-                          <Badge
-                            variant={
-                              b.status === 'completed'
-                                ? 'success'
-                                : b.status === 'cancelled'
-                                ? 'destructive'
-                                : b.status === 'in_progress'
-                                ? 'info'
-                                : 'warning'
-                            }
-                            dot
-                            className="text-[10px] capitalize px-2 py-0.5"
-                          >
-                            {b.status.replace('_', ' ')}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 font-medium">
+                          <Calendar className="h-3 w-3 shrink-0" />
+                          <span>{formatDate(b.scheduled_date)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end shrink-0 gap-1 text-right">
+                      <span className="text-xs font-bold tabular-nums text-foreground">
+                        {formatCurrency(b.total_amount)}
+                      </span>
+                      <Badge
+                        variant={
+                          b.status === 'completed'
+                            ? 'success'
+                            : b.status === 'cancelled'
+                            ? 'destructive'
+                            : b.status === 'in_progress'
+                            ? 'info'
+                            : 'warning'
+                        }
+                        dot
+                        pulse={b.status === 'in_progress' || b.status === 'confirmed'}
+                        className="text-[10px] capitalize px-2 py-0 font-medium"
+                      >
+                        {b.status.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
 
-          {/* BuildKart Recent Orders */}
-          <div className="glass-card card-highlight rounded-2xl border border-border/50 overflow-hidden shadow-xs flex flex-col">
+          {/* BuildKart Recent Orders Stream */}
+          <div className="glass-card card-highlight rounded-2xl border border-border/50 overflow-hidden shadow-sm flex flex-col">
             <div className="flex items-center justify-between px-5 py-3.5 border-b border-border/40 bg-muted/20">
               <div className="flex items-center gap-2.5">
                 <span className="relative flex h-2 w-2">
@@ -597,57 +637,65 @@ export default async function OverviewPage() {
               </div>
               <Link
                 href="/buildkart/orders"
-                className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1"
+                className="text-[11px] font-semibold text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 group"
               >
-                View all →
+                <span>View all</span>
+                <span className="group-hover:translate-x-0.5 transition-transform">→</span>
               </Link>
             </div>
 
-            <div className="flex-1 overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-border/30 hover:bg-transparent">
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5">Order ID</TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5">Amount</TableHead>
-                    <TableHead className="text-[11px] font-semibold uppercase tracking-wider py-2.5 text-right">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {buildkartOrders.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={3} className="text-center py-8 text-xs text-muted-foreground">
-                        No recent orders found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    buildkartOrders.map((o) => (
-                      <TableRow key={o.id} className="border-border/30 hover:bg-muted/40 transition-colors">
-                        <TableCell className="py-3 font-mono text-xs font-medium text-foreground">
+            <div className="flex-1 divide-y divide-border/30">
+              {buildkartOrders.length === 0 ? (
+                <div className="text-center py-10 px-4">
+                  <div className="h-10 w-10 rounded-2xl bg-muted/60 flex items-center justify-center mx-auto mb-2 text-muted-foreground">
+                    <Package className="h-5 w-5" />
+                  </div>
+                  <p className="text-xs font-semibold text-muted-foreground">No recent orders found</p>
+                  <p className="text-[11px] text-muted-foreground/70 mt-0.5">Incoming orders will appear here automatically</p>
+                </div>
+              ) : (
+                buildkartOrders.map((o) => (
+                  <Link
+                    key={o.id}
+                    href="/buildkart/orders"
+                    className="group flex items-center justify-between p-3.5 hover:bg-muted/40 transition-colors duration-150"
+                  >
+                    <div className="flex items-center gap-3 min-w-0 pr-2">
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl border border-amber-500/20 bg-amber-500/10 text-amber-600 shadow-2xs group-hover:scale-105 transition-transform">
+                        <Hammer className="h-4 w-4" />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-xs font-mono font-semibold text-foreground truncate group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">
                           #{o.id.slice(0, 8)}
-                        </TableCell>
-                        <TableCell className="text-xs font-semibold tabular-nums py-3">
-                          {formatCurrency(o.total)}
-                        </TableCell>
-                        <TableCell className="text-right py-3">
-                          <Badge
-                            variant={
-                              o.status === 'delivered' || o.status === 'completed'
-                                ? 'success'
-                                : o.status === 'cancelled'
-                                ? 'destructive'
-                                : 'warning'
-                            }
-                            dot
-                            className="text-[10px] capitalize px-2 py-0.5"
-                          >
-                            {o.status}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
+                        </p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5 flex items-center gap-1 font-medium">
+                          <Clock className="h-3 w-3 shrink-0" />
+                          <span>{relativeTime(o.created_at)}</span>
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex flex-col items-end shrink-0 gap-1 text-right">
+                      <span className="text-xs font-bold tabular-nums text-foreground">
+                        {formatCurrency(o.total)}
+                      </span>
+                      <Badge
+                        variant={
+                          o.status === 'delivered' || o.status === 'completed'
+                            ? 'success'
+                            : o.status === 'cancelled'
+                            ? 'destructive'
+                            : 'warning'
+                        }
+                        dot
+                        pulse={o.status === 'processing' || o.status === 'shipped'}
+                        className="text-[10px] capitalize px-2 py-0 font-medium"
+                      >
+                        {o.status}
+                      </Badge>
+                    </div>
+                  </Link>
+                ))
+              )}
             </div>
           </div>
         </div>
