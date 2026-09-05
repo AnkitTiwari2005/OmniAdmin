@@ -9,6 +9,8 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { createService, updateService, toggleServiceActive, deleteService } from '@/integrations/houserve/actions';
 import type { HouserveService } from '@/integrations/houserve/types';
@@ -36,6 +38,9 @@ export function ServicesPanel({ services }: ServiceFormProps) {
   const [editing, setEditing] = useState<HouserveService | null>(null);
   const [form, setForm] = useState(EMPTY);
   const [error, setError] = useState<string | null>(null);
+
+  const [deleteId, setDeleteId] = useState<string | null>(null);
+  const [deleteName, setDeleteName] = useState<string>('');
 
   function openCreate() {
     setEditing(null);
@@ -65,12 +70,36 @@ export function ServicesPanel({ services }: ServiceFormProps) {
     setError(null);
     startTransition(async () => {
       const result = editing
-        ? await updateService(editing.id, { name: form.name, category: form.category, description: form.description || undefined, price: form.price, duration_minutes: form.duration_minutes, sort_order: form.sort_order })
-        : await createService({ name: form.name, category: form.category, description: form.description || undefined, price: form.price, duration_minutes: form.duration_minutes, sort_order: form.sort_order });
+        ? await updateService(editing.id, {
+            name: form.name,
+            category: form.category,
+            description: form.description || undefined,
+            price: form.price,
+            duration_minutes: form.duration_minutes,
+            sort_order: form.sort_order,
+          })
+        : await createService({
+            name: form.name,
+            category: form.category,
+            description: form.description || undefined,
+            price: form.price,
+            duration_minutes: form.duration_minutes,
+            sort_order: form.sort_order,
+          });
 
       if ('error' in result && result.error) {
         setError(result.error);
+        toast({
+          title: 'Operation Failed',
+          description: result.error,
+          variant: 'destructive',
+        });
       } else {
+        toast({
+          title: editing ? 'Service Updated' : 'Service Created',
+          description: `Successfully saved ${form.name}`,
+          variant: 'success',
+        });
         setDialogOpen(false);
         router.refresh();
       }
@@ -79,15 +108,42 @@ export function ServicesPanel({ services }: ServiceFormProps) {
 
   function handleToggle(id: string, current: boolean) {
     startTransition(async () => {
-      await toggleServiceActive(id, !current);
+      const result = await toggleServiceActive(id, !current);
+      if ('error' in result && result.error) {
+        toast({
+          title: 'Update Failed',
+          description: result.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Status Updated',
+        description: `Service ${!current ? 'activated' : 'deactivated'}`,
+        variant: 'success',
+      });
       router.refresh();
     });
   }
 
-  function handleDelete(id: string) {
-    if (!confirm('Delete this service? This cannot be undone.')) return;
+  function handleDeleteConfirm() {
+    if (!deleteId) return;
     startTransition(async () => {
-      await deleteService(id);
+      const result = await deleteService(deleteId);
+      if ('error' in result && result.error) {
+        toast({
+          title: 'Delete Failed',
+          description: result.error,
+          variant: 'destructive',
+        });
+        return;
+      }
+      toast({
+        title: 'Service Deleted',
+        description: `Deleted ${deleteName}`,
+        variant: 'success',
+      });
+      setDeleteId(null);
       router.refresh();
     });
   }
@@ -127,9 +183,11 @@ export function ServicesPanel({ services }: ServiceFormProps) {
                 <TableRow key={s.id}>
                   <TableCell className="font-medium text-sm">{s.name}</TableCell>
                   <TableCell>
-                    <Badge variant="secondary" className="text-xs">{s.category}</Badge>
+                    <Badge variant="secondary" className="text-xs">
+                      {s.category}
+                    </Badge>
                   </TableCell>
-                  <TableCell className="text-sm">{formatCurrency(s.price)}</TableCell>
+                  <TableCell className="text-sm font-medium">{formatCurrency(s.price)}</TableCell>
                   <TableCell className="text-sm text-muted-foreground">{s.duration_minutes} min</TableCell>
                   <TableCell>
                     <Badge variant={s.is_active ? 'success' : 'secondary'}>
@@ -139,24 +197,36 @@ export function ServicesPanel({ services }: ServiceFormProps) {
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-2">
                       <Button
-                        size="sm" variant="ghost"
+                        size="sm"
+                        variant="ghost"
                         className="h-7 w-7 p-0 text-muted-foreground"
                         onClick={() => handleToggle(s.id, s.is_active)}
                         disabled={isPending}
                         title={s.is_active ? 'Deactivate' : 'Activate'}
                       >
-                        {s.is_active
-                          ? <ToggleRight className="h-4 w-4 text-green-500" />
-                          : <ToggleLeft className="h-4 w-4" />
-                        }
+                        {s.is_active ? (
+                          <ToggleRight className="h-4 w-4 text-green-500" />
+                        ) : (
+                          <ToggleLeft className="h-4 w-4" />
+                        )}
                       </Button>
-                      <Button size="sm" variant="ghost" className="h-7 w-7 p-0" onClick={() => openEdit(s)} disabled={isPending}>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="h-7 w-7 p-0"
+                        onClick={() => openEdit(s)}
+                        disabled={isPending}
+                      >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
                       <Button
-                        size="sm" variant="ghost"
+                        size="sm"
+                        variant="ghost"
                         className="h-7 w-7 p-0 text-destructive hover:text-destructive"
-                        onClick={() => handleDelete(s.id)}
+                        onClick={() => {
+                          setDeleteId(s.id);
+                          setDeleteName(s.name);
+                        }}
                         disabled={isPending}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -179,35 +249,78 @@ export function ServicesPanel({ services }: ServiceFormProps) {
           <form onSubmit={handleSubmit} className="flex flex-col gap-4">
             <div className="space-y-1.5">
               <Label htmlFor="name">Service name *</Label>
-              <Input id="name" value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} required placeholder="e.g. Deep Cleaning" />
+              <Input
+                id="name"
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+                required
+                placeholder="e.g. Deep Cleaning"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="category">Category *</Label>
-              <Input id="category" value={form.category} onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))} required placeholder="e.g. Cleaning" />
+              <Input
+                id="category"
+                value={form.category}
+                onChange={(e) => setForm((f) => ({ ...f, category: e.target.value }))}
+                required
+                placeholder="e.g. Cleaning"
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="desc">Description</Label>
-              <Textarea id="desc" value={form.description ?? ''} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} placeholder="What does this service include?" rows={3} />
+              <Textarea
+                id="desc"
+                value={form.description ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                placeholder="What does this service include?"
+                rows={3}
+              />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1.5">
                 <Label htmlFor="price">Price (₹) *</Label>
-                <Input id="price" type="number" min={0} step={0.01} value={form.price} onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))} required />
+                <Input
+                  id="price"
+                  type="number"
+                  min={0}
+                  step={0.01}
+                  value={form.price}
+                  onChange={(e) => setForm((f) => ({ ...f, price: parseFloat(e.target.value) || 0 }))}
+                  required
+                />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="duration">Duration (min) *</Label>
-                <Input id="duration" type="number" min={1} value={form.duration_minutes} onChange={(e) => setForm((f) => ({ ...f, duration_minutes: parseInt(e.target.value) || 60 }))} required />
+                <Input
+                  id="duration"
+                  type="number"
+                  min={1}
+                  value={form.duration_minutes}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, duration_minutes: parseInt(e.target.value) || 60 }))
+                  }
+                  required
+                />
               </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="sort">Sort order</Label>
-              <Input id="sort" type="number" min={0} value={form.sort_order} onChange={(e) => setForm((f) => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))} />
+              <Input
+                id="sort"
+                type="number"
+                min={0}
+                value={form.sort_order}
+                onChange={(e) => setForm((f) => ({ ...f, sort_order: parseInt(e.target.value) || 0 }))}
+              />
             </div>
 
-            {error && <p className="text-sm text-destructive">{error}</p>}
+            {error && <p className="text-sm text-destructive font-medium">{error}</p>}
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
+              <Button type="button" variant="outline" onClick={() => setDialogOpen(false)}>
+                Cancel
+              </Button>
               <Button type="submit" disabled={isPending}>
                 {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 {editing ? 'Save Changes' : 'Create Service'}
@@ -216,6 +329,22 @@ export function ServicesPanel({ services }: ServiceFormProps) {
           </form>
         </DialogContent>
       </Dialog>
+
+      {/* In-app Delete Confirmation Dialog */}
+      <ConfirmDialog
+        open={deleteId !== null}
+        onOpenChange={(open) => {
+          if (!open) setDeleteId(null);
+        }}
+        title="Delete Service"
+        description={
+          <span>
+            Are you sure you want to delete <strong className="text-foreground">{deleteName}</strong>?
+          </span>
+        }
+        isPending={isPending}
+        onConfirm={handleDeleteConfirm}
+      />
     </>
   );
 }

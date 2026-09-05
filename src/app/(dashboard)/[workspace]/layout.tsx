@@ -3,7 +3,6 @@ import { WORKSPACES } from '@/lib/workspace';
 import type { WorkspaceSlug } from '@/lib/workspace';
 import { Sidebar } from '@/components/shell/Sidebar';
 import { Header } from '@/components/shell/Header';
-import { QueryProvider } from '@/components/providers/QueryProvider';
 import { redirect } from 'next/navigation';
 
 interface WorkspaceLayoutProps {
@@ -46,9 +45,7 @@ export default async function WorkspaceLayout({ children, params }: WorkspaceLay
           accentHex={workspace.accentHex}
         />
         <main className="flex-1 overflow-y-auto bg-background">
-          <QueryProvider>
-            {children}
-          </QueryProvider>
+          {children}
         </main>
       </div>
     </div>

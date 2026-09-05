@@ -1,77 +1,40 @@
-import { notFound } from 'next/navigation';
+import Link from 'next/link';
 import { requireWorkspaceAccess } from '@/lib/auth';
 import { getWorkspaceOrNull } from '@/lib/workspace';
 import { PageHeader } from '@/components/shell/PageHeader';
-import { Badge } from '@/components/ui/badge';
-import { Skeleton } from '@/components/ui/skeleton';
-
-// Placeholder page for workspace sub-routes (orders, bookings, products, etc.)
-// Full implementation built in Steps 2-4 per workspace.
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
 
 interface SubPageProps {
   params: Promise<{ workspace: string; subpage: string }>;
 }
 
-const SUBPAGE_LABELS: Record<string, string> = {
-  orders: 'Orders',
-  bookings: 'Bookings',
-  products: 'Products',
-  services: 'Services',
-  categories: 'Categories',
-  customers: 'Customers',
-  technicians: 'Technicians',
-  payments: 'Payments',
-};
-
-export default async function WorkspaceSubPage({ params }: SubPageProps) {
+export default async function WorkspaceSubPageFallback({ params }: SubPageProps) {
   const { workspace, subpage } = await params;
   await requireWorkspaceAccess(workspace);
   const ws = getWorkspaceOrNull(workspace);
-  if (!ws) notFound();
-
-  const label = SUBPAGE_LABELS[subpage] ?? subpage;
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title={label}
-        description={`${ws.name} · ${label}`}
-        action={
-          <Badge variant="outline" className="text-xs">
-            Coming in Step {workspace === 'houserve' ? '2' : workspace === 'buildkart' ? '3' : '4'}
-          </Badge>
-        }
+        title="Page Not Found"
+        description={`${ws?.name ?? 'Workspace'} · /${subpage}`}
       />
 
-      {/* Skeleton preview to show information density intent */}
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b">
-          <div className="flex gap-2">
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-8 w-24" />
-            <Skeleton className="h-8 w-24" />
-          </div>
-          <Skeleton className="h-8 w-32" />
+      <div className="rounded-xl border bg-card p-12 text-center flex flex-col items-center justify-center max-w-lg mx-auto shadow-sm">
+        <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center mb-4 text-muted-foreground">
+          <AlertCircle className="h-6 w-6" />
         </div>
-        <div className="divide-y divide-border">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="flex items-center gap-4 px-5 py-3.5">
-              <Skeleton className="h-4 w-28" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-20" />
-              <Skeleton className="h-5 w-16 rounded-full" />
-              <div className="ml-auto flex gap-2">
-                <Skeleton className="h-7 w-7 rounded" />
-                <Skeleton className="h-7 w-7 rounded" />
-              </div>
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center justify-between px-5 py-3 border-t">
-          <Skeleton className="h-4 w-32" />
-          <Skeleton className="h-8 w-24" />
-        </div>
+        <h3 className="font-semibold text-lg mb-1">Unknown Section</h3>
+        <p className="text-sm text-muted-foreground mb-6">
+          The requested path <code className="font-mono text-xs bg-muted px-1.5 py-0.5 rounded">/{workspace}/{subpage}</code> is not a recognized route in the {ws?.name ?? ''} workspace.
+        </p>
+        <Button asChild>
+          <Link href={`/${workspace}`}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Back to Dashboard
+          </Link>
+        </Button>
       </div>
     </div>
   );

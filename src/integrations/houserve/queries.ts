@@ -60,31 +60,46 @@ export async function getHouserveRecentBookings(limit = 5): Promise<HouserveRece
   return (data ?? []) as HouserveRecentBooking[];
 }
 
-// ── 7-day chart data ─────────────────────────────────────────
+// ── 7-day chart data (Optimized: 1 query instead of 14) ─────
 
 export async function getHouserveWeeklyChart(): Promise<Array<{ date: string; bookings: number; revenue: number }>> {
   const db = getHouserveClient();
-  const days: Array<{ date: string; bookings: number; revenue: number }> = [];
+  const startDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+  startDate.setHours(0, 0, 0, 0);
 
+  const { data, error } = await db
+    .from('bookings')
+    .select('id, total_amount, payment_status, created_at')
+    .gte('created_at', startDate.toISOString());
+
+  if (error) throw error;
+
+  const dayBuckets: Record<string, { label: string; bookings: number; revenue: number }> = {};
   for (let i = 6; i >= 0; i--) {
     const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-    d.setHours(0, 0, 0, 0);
-    const end = new Date(d); end.setHours(23, 59, 59, 999);
-
-    const [cnt, rev] = await Promise.all([
-      db.from('bookings').select('*', { count: 'exact', head: true })
-        .gte('created_at', d.toISOString()).lte('created_at', end.toISOString()),
-      db.from('bookings').select('id, total_amount')
-        .gte('created_at', d.toISOString()).lte('created_at', end.toISOString()).eq('payment_status', 'paid'),
-    ]);
-
-    days.push({
-      date: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
-      bookings: cnt.count ?? 0,
-      revenue: ((rev.data ?? []) as Array<{ total_amount: number }>).reduce((s, b) => s + (b.total_amount ?? 0), 0),
-    });
+    const key = d.toISOString().slice(0, 10);
+    dayBuckets[key] = {
+      label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+      bookings: 0,
+      revenue: 0,
+    };
   }
-  return days;
+
+  ((data ?? []) as any[]).forEach((row) => {
+    const dayKey = row.created_at ? row.created_at.slice(0, 10) : '';
+    if (dayBuckets[dayKey]) {
+      dayBuckets[dayKey].bookings += 1;
+      if (row.payment_status === 'paid') {
+        dayBuckets[dayKey].revenue += Number(row.total_amount) || 0;
+      }
+    }
+  });
+
+  return Object.values(dayBuckets).map((b) => ({
+    date: b.label,
+    bookings: b.bookings,
+    revenue: b.revenue,
+  }));
 }
 
 // ── Bookings list ─────────────────────────────────────────────
@@ -104,54 +119,63 @@ export async function getHouserveBookings(filters: BookingFilters = {}): Promise
   const { status, search, page = 1, limit = 20 } = filters;
   const offset = (page - 1) * limit;
 
+  // Single query embedding service and real booking line items
   let query = db
     .from('bookings')
     .select(
-      'id, booking_ref, customer_id, service_id, technician_id, status, scheduled_date, scheduled_time, address_snapshot, special_instructions, subtotal, platform_fee, gst_amount, total_amount, razorpay_order_id, razorpay_payment_id, payment_status, created_at',
+      'id, booking_ref, customer_id, service_id, technician_id, status, scheduled_date, scheduled_time, address_snapshot, special_instructions, subtotal, platform_fee, gst_amount, total_amount, razorpay_order_id, razorpay_payment_id, payment_status, created_at, service:services(id, name, category), booking_items(id, service_id, quantity, unit_price, total_price, service:services(id, name))',
       { count: 'exact' }
     )
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('created_at', { ascending: false });
 
   if (status && status !== 'all') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     query = (query as any).eq('status', status);
   }
 
-  const { data, count, error } = await query;
+  if (search) {
+    query = query.ilike('booking_ref', `%${search}%`);
+  }
+
+  const { data, count, error } = await query.range(offset, offset + limit - 1);
   if (error) throw error;
 
-  const bookingIds = (data ?? []).map((b) => (b as Record<string, unknown>).id as string);
+  // Batch query customer and technician profiles in 1 call
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const rawData = (data ?? []) as Array<any>;
+  const profileIds = Array.from(
+    new Set(rawData.flatMap((b) => [b.customer_id, b.technician_id]).filter(Boolean))
+  );
 
-  // Batch-load related data
-  const [profilesRes, servicesRes, techniciansRes] = await Promise.all([
-    db.from('profiles').select('id, full_name, email, phone').in('id', (data ?? []).map((b) => (b as Record<string, unknown>).customer_id as string).filter(Boolean)),
-    db.from('services').select('id, name, category').in('id', (data ?? []).map((b) => (b as Record<string, unknown>).service_id as string).filter(Boolean)),
-    db.from('profiles').select('id, full_name, phone').in('id', (data ?? []).map((b) => (b as Record<string, unknown>).technician_id as string).filter(Boolean)),
-  ]);
+  const { data: profiles } = profileIds.length
+    ? await db.from('profiles').select('id, full_name, email, phone').in('id', profileIds)
+    : { data: [] };
 
-  const profileMap = Object.fromEntries((profilesRes.data ?? []).map((p) => [(p as Record<string, unknown>).id as string, p]));
-  const serviceMap = Object.fromEntries((servicesRes.data ?? []).map((s) => [(s as Record<string, unknown>).id as string, s]));
-  const techMap = Object.fromEntries((techniciansRes.data ?? []).map((t) => [(t as Record<string, unknown>).id as string, t]));
+  const profileMap = Object.fromEntries(
+    ((profiles ?? []) as any[]).map((p: any) => [p.id, p])
+  );
 
-  const bookings = ((data ?? []) as Array<Record<string, unknown>>).map((b) => ({
-    ...b,
-    customer: profileMap[b.customer_id as string] ?? null,
-    service: serviceMap[b.service_id as string] ?? null,
-    technician: techMap[b.technician_id as string] ?? null,
-    booking_items: [],
-  })) as unknown as HouserveBookingFull[];
+  const bookings: HouserveBookingFull[] = rawData.map((b) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const items = (b.booking_items ?? []).map((bi: any) => ({
+      id: bi.id,
+      service_id: bi.service_id,
+      quantity: Number(bi.quantity) || 1,
+      unit_price: Number(bi.unit_price) || 0,
+      total_price: Number(bi.total_price) || 0,
+      service: bi.service ? { name: bi.service.name } : null,
+    }));
 
-  // Filter by search client-side (on the already fetched page)
-  const filtered = search
-    ? bookings.filter((b) =>
-        b.booking_ref.toLowerCase().includes(search.toLowerCase()) ||
-        b.customer?.full_name?.toLowerCase().includes(search.toLowerCase()) ||
-        b.customer?.email?.toLowerCase().includes(search.toLowerCase())
-      )
-    : bookings;
+    return {
+      ...b,
+      customer: profileMap[b.customer_id] ?? null,
+      technician: profileMap[b.technician_id] ?? null,
+      service: b.service ?? null,
+      booking_items: items,
+    } as HouserveBookingFull;
+  });
 
-  return { bookings: filtered, total: count ?? 0 };
+  return { bookings, total: count ?? 0 };
 }
 
 // ── Services ─────────────────────────────────────────────────
@@ -164,6 +188,18 @@ export async function getHouserveServices(): Promise<HouserveService[]> {
     .order('sort_order', { ascending: true });
   if (error) throw error;
   return (data ?? []) as HouserveService[];
+}
+
+// ── Promotions ───────────────────────────────────────────────
+
+export async function getHouservePromotions(): Promise<import('./types').HouservePromotion[]> {
+  const db = getHouserveClient();
+  const { data, error } = await db
+    .from('promotions')
+    .select('id, title, subtitle, cta_text, bg_gradient, link_path, is_active, sort_order, created_at, image_url')
+    .order('sort_order', { ascending: true });
+  if (error) throw error;
+  return (data ?? []) as import('./types').HouservePromotion[];
 }
 
 // ── Technicians ───────────────────────────────────────────────
@@ -201,52 +237,78 @@ export async function getHouserveTechnicians(): Promise<HouserveTechnician[]> {
 
 // ── Customers ─────────────────────────────────────────────────
 
-export async function getHouserveCustomers(page = 1, limit = 30): Promise<{ customers: HouserveCustomer[]; total: number }> {
+export async function getHouserveCustomers(
+  filters: { search?: string; page?: number; limit?: number } = {}
+): Promise<{ customers: HouserveCustomer[]; total: number }> {
   const db = getHouserveClient();
+  const { search, page = 1, limit = 30 } = filters;
   const offset = (page - 1) * limit;
 
-  const { data, count, error } = await db
+  let query = db
     .from('profiles')
     .select('id, full_name, email, phone, avatar_url, created_at', { count: 'exact' })
     .eq('role', 'customer')
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('created_at', { ascending: false });
 
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+  }
+
+  const { data, count, error } = await query.range(offset, offset + limit - 1);
   if (error) throw error;
-  const customers = ((data ?? []) as Array<Record<string, unknown>>).map((p) => ({
-    id: p.id as string,
-    full_name: p.full_name as string | null,
-    email: p.email as string | null,
-    phone: p.phone as string | null,
-    avatar_url: p.avatar_url as string | null,
+
+  const rawCustomers = (data ?? []) as any[];
+  const customers = rawCustomers.map((p) => ({
+    id: p.id,
+    full_name: p.full_name ?? null,
+    email: p.email ?? null,
+    phone: p.phone ?? null,
+    avatar_url: p.avatar_url ?? null,
     razorpay_customer_id: null,
-    created_at: p.created_at as string,
+    created_at: p.created_at,
   }));
   return { customers, total: count ?? 0 };
 }
 
 // ── Payments ──────────────────────────────────────────────────
 
-export async function getHouservePayments(page = 1, limit = 30): Promise<{ payments: HouservePayment[]; total: number }> {
+export async function getHouservePayments(
+  filters: { search?: string; page?: number; limit?: number } = {}
+): Promise<{ payments: HouservePayment[]; total: number }> {
   const db = getHouserveClient();
+  const { search, page = 1, limit = 30 } = filters;
   const offset = (page - 1) * limit;
 
-  const { data, count, error } = await db
+  let query = db
     .from('bookings')
-    .select('id, booking_ref, customer_id, total_amount, subtotal, platform_fee, gst_amount, razorpay_order_id, razorpay_payment_id, payment_status, scheduled_date, created_at', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .select(
+      'id, booking_ref, customer_id, total_amount, subtotal, platform_fee, gst_amount, razorpay_order_id, razorpay_payment_id, payment_status, scheduled_date, created_at',
+      { count: 'exact' }
+    )
+    .order('created_at', { ascending: false });
 
+  if (search) {
+    query = query.or(`booking_ref.ilike.%${search}%,razorpay_payment_id.ilike.%${search}%`);
+  }
+
+  const { data, count, error } = await query.range(offset, offset + limit - 1);
   if (error) throw error;
 
-  const custIds = (data ?? []).map((b) => (b as Record<string, unknown>).customer_id as string).filter(Boolean);
-  const { data: profiles } = await db.from('profiles').select('id, full_name, email').in('id', custIds);
-  const profileMap = Object.fromEntries((profiles ?? []).map((p) => [(p as Record<string, unknown>).id as string, p]));
+  const rawPayments = (data ?? []) as any[];
+  const custIds = Array.from(new Set(rawPayments.map((b) => b.customer_id).filter(Boolean)));
+  const { data: profiles } = custIds.length
+    ? await db.from('profiles').select('id, full_name, email').in('id', custIds)
+    : { data: [] };
 
-  const payments = ((data ?? []) as Array<Record<string, unknown>>).map((b) => ({
+  const rawProfiles = (profiles ?? []) as any[];
+  const profileMap = Object.fromEntries(
+    rawProfiles.map((p) => [p.id, p])
+  );
+
+  const payments = rawPayments.map((b) => ({
     ...b,
-    customer: profileMap[b.customer_id as string] ?? null,
-  })) as unknown as HouservePayment[];
+    customer: profileMap[b.customer_id] ?? null,
+  })) as HouservePayment[];
 
   return { payments, total: count ?? 0 };
 }

@@ -79,14 +79,23 @@ export interface ShudhhamCustomer {
   created_at: string;
 }
 
-export async function getShudhhamCustomers(page = 1, limit = 30): Promise<{ customers: ShudhhamCustomer[]; total: number }> {
+export async function getShudhhamCustomers(
+  filters: { search?: string; page?: number; limit?: number } = {}
+): Promise<{ customers: ShudhhamCustomer[]; total: number }> {
   const db = getShudhhamClient();
+  const { search, page = 1, limit = 30 } = filters;
   const offset = (page - 1) * limit;
-  const { data, count, error } = await db
+
+  let query = db
     .from('profiles')
     .select('id, full_name, email, phone, created_at', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('created_at', { ascending: false });
+
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+  }
+
+  const { data, count, error } = await query.range(offset, offset + limit - 1);
   if (error) throw error;
   return { customers: (data ?? []) as ShudhhamCustomer[], total: count ?? 0 };
 }
@@ -104,14 +113,23 @@ export interface ShudhhamPayment {
   payment_id: string | null;
 }
 
-export async function getShudhhamPayments(page = 1, limit = 30): Promise<{ payments: ShudhhamPayment[]; total: number }> {
+export async function getShudhhamPayments(
+  filters: { search?: string; page?: number; limit?: number } = {}
+): Promise<{ payments: ShudhhamPayment[]; total: number }> {
   const db = getShudhhamClient();
+  const { search, page = 1, limit = 30 } = filters;
   const offset = (page - 1) * limit;
-  const { data, count, error } = await db
+
+  let query = db
     .from('orders')
     .select('id, full_name, total_amount, status, created_at', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .order('created_at', { ascending: false });
+
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,id.ilike.%${search}%`);
+  }
+
+  const { data, count, error } = await query.range(offset, offset + limit - 1);
   if (error) throw error;
 
   const payments = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({
@@ -130,71 +148,123 @@ export async function getShudhhamPayments(page = 1, limit = 30): Promise<{ payme
 
 // ── Orders list ───────────────────────────────────────────────
 
+export interface ShudhhamOrderItem {
+  id: string;
+  order_id: string;
+  product_id: string;
+  product_name: string;
+  quantity: number;
+  price: number;
+}
+
 export interface ShudhhamOrder {
   id: string;
+  user_id?: string;
   full_name: string | null;
   total_amount: number;
-  status: string;
-  payment_status: string | null;
+  status: 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  address: string | null;
+  city: string | null;
+  state: string | null;
+  pin_code: string | null;
   created_at: string;
+  items: ShudhhamOrderItem[];
 }
 
 export async function getShudhhamOrders(
-  filters: { status?: string; page?: number; limit?: number } = {}
+  filters: { status?: string; search?: string; page?: number; limit?: number } = {}
 ): Promise<{ orders: ShudhhamOrder[]; total: number }> {
   const db = getShudhhamClient();
-  const { status, page = 1, limit = 30 } = filters;
+  const { status, search, page = 1, limit = 30 } = filters;
   const offset = (page - 1) * limit;
 
   let query = db
     .from('orders')
-    .select('id, full_name, total_amount, status, created_at', { count: 'exact' })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .select('id, user_id, full_name, total_amount, status, address, city, state, pin_code, created_at, order_items(*)', { count: 'exact' })
+    .order('created_at', { ascending: false });
 
   if (status && status !== 'all') {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     query = (query as any).eq('status', status);
   }
 
-  const { data, count, error } = await query;
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,id.ilike.%${search}%`);
+  }
+
+  const { data, count, error } = await query.range(offset, offset + limit - 1);
   if (error) throw error;
-  const orders = ((data ?? []) as Array<Record<string, unknown>>).map((o) => ({
-    id: o.id as string,
-    full_name: o.full_name as string | null,
-    total_amount: Number(o.total_amount) || 0,
-    status: (o.status as string) || 'processing',
-    payment_status: (o.status as string) || 'completed',
-    created_at: o.created_at as string,
-  }));
+
+  const orders: ShudhhamOrder[] = ((data ?? []) as Array<Record<string, unknown>>).map((o) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rawItems = (o.order_items ?? []) as Array<any>;
+    const items: ShudhhamOrderItem[] = rawItems.map((item) => ({
+      id: item.id,
+      order_id: item.order_id,
+      product_id: item.product_id,
+      product_name: item.product_name,
+      quantity: Number(item.quantity) || 1,
+      price: Number(item.price) || 0,
+    }));
+
+    return {
+      id: o.id as string,
+      user_id: o.user_id as string | undefined,
+      full_name: o.full_name as string | null,
+      total_amount: Number(o.total_amount) || 0,
+      status: (o.status as 'processing' | 'shipped' | 'delivered' | 'cancelled') || 'processing',
+      address: o.address as string | null,
+      city: o.city as string | null,
+      state: o.state as string | null,
+      pin_code: o.pin_code as string | null,
+      created_at: o.created_at as string,
+      items,
+    };
+  });
+
   return { orders, total: count ?? 0 };
 }
 
-// ── Weekly chart data ─────────────────────────────────────────
+// ── Weekly chart data (Optimized: 1 query instead of 14) ─────
 
 export async function getShudhhamWeeklyChart(): Promise<Array<{ date: string; orders: number; revenue: number }>> {
   const db = getShudhhamClient();
-  const result: Array<{ date: string; orders: number; revenue: number }> = [];
+  const startDate = new Date(Date.now() - 6 * 24 * 60 * 60 * 1000);
+  startDate.setHours(0, 0, 0, 0);
 
+  const { data, error } = await db
+    .from('orders')
+    .select('id, total_amount, status, created_at')
+    .gte('created_at', startDate.toISOString());
+
+  if (error) throw error;
+
+  const dayBuckets: Record<string, { label: string; orders: number; revenue: number }> = {};
   for (let i = 6; i >= 0; i--) {
     const d = new Date(Date.now() - i * 24 * 60 * 60 * 1000);
-    d.setHours(0, 0, 0, 0);
-    const end = new Date(d); end.setHours(23, 59, 59, 999);
-
-    const [cnt, rev] = await Promise.all([
-      db.from('orders').select('*', { count: 'exact', head: true })
-        .gte('created_at', d.toISOString()).lte('created_at', end.toISOString()),
-      db.from('orders').select('id, total_amount')
-        .gte('created_at', d.toISOString()).lte('created_at', end.toISOString()).neq('status', 'cancelled'),
-    ]);
-
-    result.push({
-      date: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
-      orders: cnt.count ?? 0,
-      revenue: ((rev.data ?? []) as Array<{ total_amount: number }>).reduce((s, o) => s + (o.total_amount ?? 0), 0),
-    });
+    const key = d.toISOString().slice(0, 10);
+    dayBuckets[key] = {
+      label: d.toLocaleDateString('en-IN', { day: '2-digit', month: 'short' }),
+      orders: 0,
+      revenue: 0,
+    };
   }
-  return result;
+
+  ((data ?? []) as any[]).forEach((row) => {
+    const dayKey = row.created_at ? row.created_at.slice(0, 10) : '';
+    if (dayBuckets[dayKey]) {
+      dayBuckets[dayKey].orders += 1;
+      if (row.status !== 'cancelled') {
+        dayBuckets[dayKey].revenue += Number(row.total_amount) || 0;
+      }
+    }
+  });
+
+  return Object.values(dayBuckets).map((b) => ({
+    date: b.label,
+    orders: b.orders,
+    revenue: b.revenue,
+  }));
 }
 
 // ── Products ──────────────────────────────────────────────────

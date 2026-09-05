@@ -93,3 +93,57 @@ export async function deleteService(id: string) {
   revalidatePath('/houserve/services');
   return { success: true };
 }
+
+// ── Promotion mutations ───────────────────────────────────────
+
+export interface PromotionInput {
+  title: string;
+  subtitle?: string | null;
+  cta_text?: string | null;
+  bg_gradient?: string | null;
+  link_path?: string | null;
+  is_active?: boolean;
+  sort_order?: number;
+  image_url?: string | null;
+}
+
+export async function createPromotion(input: PromotionInput) {
+  const db = await requireHouserve();
+  const { error } = await table(db, 'promotions').insert({
+    title: input.title,
+    subtitle: input.subtitle ?? null,
+    cta_text: input.cta_text ?? 'Book Now',
+    bg_gradient: input.bg_gradient ?? 'from-blue-600 to-indigo-700',
+    link_path: input.link_path ?? '/services',
+    is_active: input.is_active ?? true,
+    sort_order: input.sort_order ?? 0,
+    image_url: input.image_url ?? null,
+  });
+  if (error) return { error: error.message };
+  revalidatePath('/houserve/promotions');
+  return { success: true };
+}
+
+export async function updatePromotion(id: string, input: Partial<PromotionInput>) {
+  const db = await requireHouserve();
+  const { error } = await table(db, 'promotions').update(input).eq('id', id);
+  if (error) return { error: error.message };
+  revalidatePath('/houserve/promotions');
+  return { success: true };
+}
+
+export async function togglePromotionActive(id: string, isActive: boolean) {
+  const db = await requireHouserve();
+  const { error } = await table(db, 'promotions').update({ is_active: isActive }).eq('id', id);
+  if (error) return { error: error.message };
+  revalidatePath('/houserve/promotions');
+  return { success: true };
+}
+
+export async function deletePromotion(id: string) {
+  const db = await requireHouserve();
+  const { error } = await table(db, 'promotions').delete().eq('id', id);
+  if (error) return { error: error.message };
+  revalidatePath('/houserve/promotions');
+  return { success: true };
+}

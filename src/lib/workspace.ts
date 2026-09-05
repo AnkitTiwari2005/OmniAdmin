@@ -26,6 +26,7 @@ import {
   Calendar,
   Tag,
   Settings,
+  Sparkles,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -81,6 +82,7 @@ export const WORKSPACES: WorkspaceConfig[] = [
       { label: 'Dashboard', href: '/houserve', icon: LayoutDashboard },
       { label: 'Bookings', href: '/houserve/bookings', icon: Calendar },
       { label: 'Services', href: '/houserve/services', icon: Wrench },
+      { label: 'Promotions', href: '/houserve/promotions', icon: Sparkles },
       { label: 'Technicians', href: '/houserve/technicians', icon: Users },
       { label: 'Customers', href: '/houserve/customers', icon: Users },
       { label: 'Payments', href: '/houserve/payments', icon: CreditCard },

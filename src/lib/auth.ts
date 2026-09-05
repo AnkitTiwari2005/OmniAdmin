@@ -7,41 +7,53 @@
 // ============================================================
 
 import { redirect } from 'next/navigation';
+import { headers } from 'next/headers';
 import { createAdminSessionClient, createAdminServiceClient } from './supabase/admin';
 import type { AdminProfile, AdminRole } from './supabase/admin-browser';
 
 export type { AdminProfile, AdminRole };
 
 // ── Get the currently logged-in admin user + their role ───────
-// Throws a redirect to /login if not authenticated.
+// Trusts the middleware's network-verified session headers to eliminate
+// a redundant second auth network call on every navigation, while strictly
+// enforcing the database role check against admin_profiles.
 export async function requireAdmin(): Promise<AdminProfile> {
-  const supabase = await createAdminSessionClient();
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser();
+  const headerList = await headers();
+  const verifiedId = headerList.get('x-admin-id');
+  const verifiedEmail = headerList.get('x-admin-email');
 
-  if (error || !user) {
-    redirect('/login');
+  let userId = verifiedId;
+  let userEmail = verifiedEmail;
+
+  if (!userId) {
+    const supabase = await createAdminSessionClient();
+    const {
+      data: { user },
+      error,
+    } = await supabase.auth.getUser();
+
+    if (error || !user) {
+      redirect('/login');
+    }
+    userId = user.id;
+    userEmail = user.email!;
   }
 
-  // Fetch role from admin_profiles
+  // Fetch role from admin_profiles (enforces role check server-side)
   const service = createAdminServiceClient();
   const { data: profile, error: profileError } = await service
     .from('admin_profiles')
     .select('*')
-    .eq('id', user.id)
+    .eq('id', userId)
     .single();
 
   if (profileError || !profile) {
-    // User authenticated but no admin_profiles row — treat as unauthorized
-    await supabase.auth.signOut();
     redirect('/login?error=not_authorized');
   }
 
   return {
-    id: user.id,
-    email: user.email!,
+    id: userId,
+    email: userEmail || '',
     full_name: profile.full_name,
     role: profile.role as AdminRole,
     created_at: profile.created_at,

@@ -79,6 +79,19 @@ export interface HouserveService {
   created_at: string;
 }
 
+export interface HouservePromotion {
+  id: string;
+  title: string;
+  subtitle: string | null;
+  cta_text: string | null;
+  bg_gradient: string | null;
+  link_path: string | null;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+  image_url: string | null;
+}
+
 export interface HouserveTechnician {
   id: string;
   full_name: string | null;

@@ -2,30 +2,30 @@ import { notFound } from 'next/navigation';
 import { requireWorkspaceAccess } from '@/lib/auth';
 import { getWorkspaceOrNull } from '@/lib/workspace';
 import { PageHeader } from '@/components/shell/PageHeader';
-import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { formatCurrency, formatDate } from '@/lib/utils';
-import { CreditCard } from 'lucide-react';
+import { PaymentsTable } from '@/components/payments/PaymentsTable';
 
-async function fetchPayments(workspace: string, page: number) {
+async function fetchPayments(
+  workspace: string,
+  filters: { search?: string; page: number }
+) {
   if (workspace === 'houserve') {
     const { getHouservePayments } = await import('@/integrations/houserve/queries');
-    return getHouservePayments(page);
+    return getHouservePayments(filters);
   }
   if (workspace === 'shudhham') {
     const { getShudhhamPayments } = await import('@/integrations/shudhham/queries');
-    return getShudhhamPayments(page);
+    return getShudhhamPayments(filters);
   }
   if (workspace === 'buildkart') {
     const { getBuildKartPayments } = await import('@/integrations/buildkart/queries');
-    return getBuildKartPayments(page);
+    return getBuildKartPayments(filters);
   }
   return { payments: [], total: 0 };
 }
 
 interface PageProps {
   params: Promise<{ workspace: string }>;
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; search?: string; q?: string }>;
 }
 
 export default async function PaymentsPage({ params, searchParams }: PageProps) {
@@ -34,7 +34,8 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
   const ws = getWorkspaceOrNull(workspace);
   if (!ws) notFound();
 
-  const { page: pageStr } = await searchParams;
+  const { page: pageStr, search, q } = await searchParams;
+  const currentSearch = q || search || '';
   const page = parseInt(pageStr ?? '1') || 1;
 
   const keyMap: Record<string, string> = {
@@ -49,7 +50,8 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
   };
 
   const key = keyMap[workspace] ?? '';
-  let payments: import('@/integrations/houserve/types').HouservePayment[] | import('@/integrations/shudhham/queries').ShudhhamPayment[] | import('@/integrations/buildkart/queries').BuildKartPayment[] = [];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let payments: any[] = [];
   let total = 0;
   let isNotConfigured = false;
 
@@ -57,7 +59,7 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
     isNotConfigured = true;
   } else {
     try {
-      const res = await fetchPayments(workspace, page);
+      const res = await fetchPayments(workspace, { search: currentSearch, page });
       payments = res.payments;
       total = res.total;
     } catch {
@@ -76,80 +78,23 @@ export default async function PaymentsPage({ params, searchParams }: PageProps) 
   }
 
   // Compute summary
-  const paid = payments.filter((p) => p.payment_status === 'paid');
+  const paid = payments.filter((p) => p.payment_status === 'paid' || p.payment_status === 'completed');
   const totalRevenue = paid.reduce((s, p) => s + (p.total_amount ?? 0), 0);
-
-  const isHouserve = workspace === 'houserve';
-  const isShudhham = workspace === 'shudhham';
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
         title="Payments"
-        description={`${ws.name} · ${total} records · ${formatCurrency(totalRevenue)} collected`}
+        description={`${ws.name} · Transactions & Gateway Records`}
       />
-
-      <div className="rounded-xl border bg-card shadow-sm overflow-hidden">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Reference</TableHead>
-              <TableHead>Customer</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>{isShudhham ? 'Stripe Payment ID' : 'Razorpay Payment ID'}</TableHead>
-              <TableHead>Date</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {payments.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  No payments yet
-                </TableCell>
-              </TableRow>
-            ) : (
-              payments.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell className="font-mono text-xs font-semibold">
-                    {/* booking_ref for Houserve, order id for others */}
-                    {(p as unknown as Record<string, unknown>).booking_ref as string
-                      ?? (p as unknown as Record<string, unknown>).order_ref as string
-                      ?? p.id.slice(0, 8) + '…'}
-                  </TableCell>
-                  <TableCell>
-                    <div className="text-sm font-medium">{p.customer?.full_name ?? '—'}</div>
-                    <div className="text-xs text-muted-foreground">{p.customer?.email ?? ''}</div>
-                  </TableCell>
-                  <TableCell className="text-sm font-medium">{formatCurrency(p.total_amount)}</TableCell>
-                  <TableCell>
-                    <Badge
-                      variant={
-                        p.payment_status === 'paid' ? 'success'
-                        : p.payment_status === 'failed' ? 'destructive'
-                        : 'warning'
-                      }
-                      className="capitalize"
-                    >
-                      {p.payment_status}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="font-mono text-xs text-muted-foreground max-w-[160px] truncate">
-                    {(p as unknown as Record<string, unknown>).razorpay_payment_id as string
-                      ?? (p as unknown as Record<string, unknown>).stripe_payment_intent_id as string
-                      ?? (p as unknown as Record<string, unknown>).payment_id as string
-                      ?? '—'}
-                  </TableCell>
-                  <TableCell className="text-sm text-muted-foreground">
-                    {formatDate(p.created_at)}
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </div>
+      <PaymentsTable
+        workspace={workspace}
+        payments={payments}
+        total={total}
+        totalRevenue={totalRevenue}
+        currentPage={page}
+        currentSearch={currentSearch}
+      />
     </div>
   );
 }

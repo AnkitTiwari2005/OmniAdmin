@@ -41,7 +41,7 @@ export async function createShudhhamProduct(input: ShudhhamProductInput) {
 
 export async function updateShudhhamProduct(id: string, input: Partial<ShudhhamProductInput>) {
   const db = await requireShudhham();
-  const { error } = await table(db, 'products').update({ ...input, updated_at: new Date().toISOString() }).eq('id', id);
+  const { error } = await table(db, 'products').update(input).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/shudhham/products');
   return { success: true };
@@ -59,7 +59,7 @@ export async function deleteShudhhamProduct(id: string) {
 
 export async function updateShudhhamOrderStatus(id: string, status: string) {
   const db = await requireShudhham();
-  const { error } = await table(db, 'orders').update({ status, updated_at: new Date().toISOString() }).eq('id', id);
+  const { error } = await table(db, 'orders').update({ status }).eq('id', id);
   if (error) return { error: error.message };
   revalidatePath('/shudhham/orders');
   return { success: true };

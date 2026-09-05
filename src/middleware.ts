@@ -51,7 +51,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL('/', request.nextUrl));
   }
 
-  return supabaseResponse;
+  const requestHeaders = new Headers(request.headers);
+  if (user) {
+    requestHeaders.set('x-admin-id', user.id);
+    if (user.email) requestHeaders.set('x-admin-email', user.email);
+  }
+
+  const finalResponse = NextResponse.next({
+    request: {
+      headers: requestHeaders,
+    },
+  });
+
+  // Re-apply any cookie changes from Supabase auth token refresh
+  supabaseResponse.cookies.getAll().forEach((c) => {
+    finalResponse.cookies.set(c);
+  });
+
+  return finalResponse;
 }
 
 export const config = {
