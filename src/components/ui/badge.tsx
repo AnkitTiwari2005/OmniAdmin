@@ -3,17 +3,19 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const badgeVariants = cva(
-  'inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+  'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-all focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
   {
     variants: {
       variant: {
-        default: 'border-transparent bg-primary text-primary-foreground hover:bg-primary/80',
-        secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
-        destructive: 'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
-        outline: 'text-foreground',
-        success: 'border-transparent bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-400',
-        warning: 'border-transparent bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400',
-        info: 'border-transparent bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400',
+        default: 'border-transparent bg-primary text-primary-foreground hover:bg-primary/90 shadow-2xs',
+        secondary: 'border-border/60 bg-secondary/80 text-secondary-foreground hover:bg-secondary',
+        destructive: 'border-destructive/20 bg-destructive/10 text-destructive dark:bg-destructive/20 hover:bg-destructive/20',
+        outline: 'border-border/70 text-foreground bg-background/50 backdrop-blur-sm',
+        success: 'border-emerald-500/20 bg-emerald-500/10 text-emerald-700 dark:text-emerald-400 dark:bg-emerald-500/15',
+        warning: 'border-amber-500/25 bg-amber-500/10 text-amber-700 dark:text-amber-400 dark:bg-amber-500/15',
+        info: 'border-sky-500/20 bg-sky-500/10 text-sky-700 dark:text-sky-400 dark:bg-sky-500/15',
+        indigo: 'border-indigo-500/20 bg-indigo-500/10 text-indigo-700 dark:text-indigo-400 dark:bg-indigo-500/15',
+        purple: 'border-purple-500/20 bg-purple-500/10 text-purple-700 dark:text-purple-400 dark:bg-purple-500/15',
       },
     },
     defaultVariants: { variant: 'default' },
@@ -22,10 +24,36 @@ const badgeVariants = cva(
 
 export interface BadgeProps
   extends React.HTMLAttributes<HTMLDivElement>,
-    VariantProps<typeof badgeVariants> {}
+    VariantProps<typeof badgeVariants> {
+  dot?: boolean;
+  pulse?: boolean;
+  dotColor?: string;
+}
 
-function Badge({ className, variant, ...props }: BadgeProps) {
-  return <div className={cn(badgeVariants({ variant }), className)} {...props} />;
+function Badge({ className, variant, dot, pulse, dotColor, children, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props}>
+      {dot && (
+        <span className="relative flex h-1.5 w-1.5 shrink-0">
+          {pulse && (
+            <span
+              className={cn(
+                'absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping',
+                dotColor ?? 'bg-current'
+              )}
+            />
+          )}
+          <span
+            className={cn(
+              'relative inline-flex h-1.5 w-1.5 rounded-full',
+              dotColor ?? 'bg-current'
+            )}
+          />
+        </span>
+      )}
+      {children}
+    </div>
+  );
 }
 
 export { Badge, badgeVariants };

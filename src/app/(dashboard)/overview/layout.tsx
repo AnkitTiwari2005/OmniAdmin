@@ -22,9 +22,9 @@ export default async function OverviewLayout({ children }: { children: React.Rea
         <Header
           admin={admin}
           workspaceName="All Businesses"
-          accentHex="#0f172a"
+          accentHex="#4F46E5"
         />
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 overflow-y-auto bg-background bg-ambient-grid">
           {children}
         </main>
       </div>

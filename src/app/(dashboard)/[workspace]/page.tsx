@@ -226,7 +226,12 @@ const STATUS_VARIANTS: Record<
 function StatusBadge({ status }: { status: string }) {
   const variant = STATUS_VARIANTS[status] ?? 'secondary';
   return (
-    <Badge variant={variant} className="capitalize">
+    <Badge
+      variant={variant}
+      dot
+      pulse={variant === 'warning' || variant === 'info'}
+      className="capitalize px-2.5 py-0.5 text-xs font-semibold"
+    >
       {status.replace(/_/g, ' ')}
     </Badge>
   );
@@ -244,14 +249,15 @@ interface RecentTableProps {
 
 function RecentTable({ title, headers, rows, emptyMessage, viewAllHref }: RecentTableProps) {
   return (
-    <div className="rounded-xl border bg-card shadow-sm">
-      <div className="flex items-center justify-between px-5 py-4 border-b">
-        <h3 className="font-semibold">{title}</h3>
+    <div className="glass-card card-highlight rounded-2xl border border-border/50 overflow-hidden shadow-xs">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-border/40 bg-muted/20">
+        <h3 className="font-bold text-sm tracking-tight text-foreground">{title}</h3>
         <a
           href={viewAllHref}
-          className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors flex items-center gap-1 group"
         >
-          View all →
+          <span>View all</span>
+          <span className="transition-transform group-hover:translate-x-0.5">→</span>
         </a>
       </div>
       {rows.length === 0 ? (
@@ -262,22 +268,22 @@ function RecentTable({ title, headers, rows, emptyMessage, viewAllHref }: Recent
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b">
+              <tr className="border-b border-border/40 bg-muted/10">
                 {headers.map((h) => (
                   <th
                     key={h}
-                    className="px-5 py-3 text-left text-xs font-medium text-muted-foreground uppercase tracking-wider"
+                    className="px-6 py-3 text-left text-[11px] font-semibold text-muted-foreground uppercase tracking-wider"
                   >
                     {h}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-border">
+            <tbody className="divide-y divide-border/30">
               {rows.map((row, i) => (
                 <tr key={i} className="hover:bg-muted/40 transition-colors">
                   {row.map((cell, j) => (
-                    <td key={j} className="px-5 py-3">
+                    <td key={j} className="px-6 py-3.5 text-xs">
                       {cell}
                     </td>
                   ))}

@@ -44,7 +44,7 @@ export default async function WorkspaceLayout({ children, params }: WorkspaceLay
           workspaceName={workspace.name}
           accentHex={workspace.accentHex}
         />
-        <main className="flex-1 overflow-y-auto bg-background">
+        <main className="flex-1 overflow-y-auto bg-background bg-ambient-grid">
           {children}
         </main>
       </div>

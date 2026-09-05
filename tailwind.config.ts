@@ -56,6 +56,20 @@ const config: Config = {
           buildkart: '#D97706',
         },
       },
+      boxShadow: {
+        '2xs': '0 1px 2px 0 rgba(0, 0, 0, 0.03)',
+        'xs': '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
+        'glow-sm': '0 0 15px -3px rgba(99, 102, 241, 0.2)',
+        'glow-md': '0 0 25px -5px rgba(99, 102, 241, 0.3)',
+        'glow-emerald': '0 0 25px -5px rgba(16, 185, 129, 0.25)',
+        'glow-sky': '0 0 25px -5px rgba(14, 165, 233, 0.25)',
+        'glow-amber': '0 0 25px -5px rgba(245, 158, 11, 0.25)',
+        'glow-indigo': '0 0 25px -5px rgba(99, 102, 241, 0.25)',
+      },
+      backdropBlur: {
+        '2xs': '1px',
+        'xs': '2px',
+      },
       borderRadius: {
         lg: 'var(--radius)',
         md: 'calc(var(--radius) - 2px)',
@@ -78,11 +92,21 @@ const config: Config = {
           '0%': { backgroundPosition: '-1000px 0' },
           '100%': { backgroundPosition: '1000px 0' },
         },
+        'pulse-subtle': {
+          '0%, 100%': { opacity: '1', transform: 'scale(1)' },
+          '50%': { opacity: '0.8', transform: 'scale(1.02)' },
+        },
+        'fade-in-up': {
+          '0%': { opacity: '0', transform: 'translateY(8px)' },
+          '100%': { opacity: '1', transform: 'translateY(0)' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
         shimmer: 'shimmer 2s infinite linear',
+        'pulse-subtle': 'pulse-subtle 3s ease-in-out infinite',
+        'fade-in-up': 'fade-in-up 0.4s ease-out forwards',
       },
     },
   },

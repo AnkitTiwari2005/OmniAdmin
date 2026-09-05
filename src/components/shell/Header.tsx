@@ -44,88 +44,108 @@ export function Header({ admin, workspaceName, accentHex }: HeaderProps) {
   return (
     <>
       <CommandPalette />
-      <header className="flex h-14 items-center justify-between border-b bg-card px-6">
-        {/* Workspace breadcrumb */}
-        <div className="flex items-center gap-2">
-          <div
-            className="h-2 w-2 rounded-full"
-            style={{ backgroundColor: accentHex }}
-            title={`${workspaceName} workspace`}
-          />
-          <span className="text-sm font-medium text-muted-foreground">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border/50 bg-background/80 px-6 backdrop-blur-xl transition-all">
+        {/* Workspace breadcrumb with live connectivity indicator */}
+        <div className="flex items-center gap-2.5">
+          <div className="relative flex h-2 w-2 items-center justify-center">
+            <span
+              className="absolute inline-flex h-full w-full rounded-full opacity-75 animate-ping"
+              style={{ backgroundColor: accentHex }}
+            />
+            <span
+              className="relative inline-flex h-2 w-2 rounded-full shadow-xs"
+              style={{ backgroundColor: accentHex }}
+            />
+          </div>
+          <span className="text-sm font-semibold tracking-tight text-foreground/90">
             {workspaceName}
+          </span>
+          <span className="hidden sm:inline-flex items-center gap-1 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400 shadow-2xs">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live
           </span>
         </div>
 
-        {/* Centre: Cmd+K search trigger */}
+        {/* Centre: Cmd+K search trigger (Linear / Raycast aesthetic) */}
         <button
           onClick={() => {
-            // Trigger the palette by firing the keydown event the palette listens to
             window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true }));
           }}
-          className="hidden md:flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/70 transition-colors"
+          className="group hidden md:flex items-center gap-2.5 rounded-xl border border-border/60 bg-muted/40 px-3.5 py-1.5 text-xs text-muted-foreground transition-all duration-200 hover:border-border hover:bg-muted/70 hover:shadow-xs focus:outline-none focus:ring-2 focus:ring-primary/20 w-64 justify-between"
           aria-label="Search pages and commands"
         >
-          <Search className="h-3.5 w-3.5" />
-          <span>Search pages…</span>
-          <kbd className="ml-4 rounded bg-muted px-1.5 py-0.5 text-[10px] font-mono border">⌘K</kbd>
+          <div className="flex items-center gap-2">
+            <Search className="h-3.5 w-3.5 text-muted-foreground group-hover:text-foreground transition-colors" />
+            <span className="group-hover:text-foreground transition-colors font-normal">Quick search...</span>
+          </div>
+          <kbd className="flex items-center gap-0.5 rounded-md border border-border/80 bg-background/80 px-1.5 py-0.5 text-[10px] font-mono text-muted-foreground shadow-2xs">
+            <span className="text-[11px]">⌘</span>K
+          </kbd>
         </button>
 
-        {/* Right: theme toggle + user menu */}
+        {/* Right: theme toggle + user profile menu */}
         <div className="flex items-center gap-2">
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-          className="h-8 w-8"
-          title="Toggle theme"
-        >
-          <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
-          <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
-          <span className="sr-only">Toggle theme</span>
-        </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+            className="h-8 w-8 rounded-lg hover:bg-muted/80 transition-colors"
+            title="Toggle theme"
+          >
+            <Sun className="h-4 w-4 rotate-0 scale-100 transition-transform duration-300 dark:-rotate-90 dark:scale-0" />
+            <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-transform duration-300 dark:rotate-0 dark:scale-100" />
+            <span className="sr-only">Toggle theme</span>
+          </Button>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" className="h-8 px-2 gap-2">
-              <Avatar className="h-6 w-6">
-                <AvatarFallback className="text-xs" style={{ backgroundColor: accentHex + '20', color: accentHex }}>
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
-              <span className="text-sm font-medium hidden sm:block">
-                {admin.full_name ?? admin.email.split('@')[0]}
-              </span>
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
-            <DropdownMenuLabel>
-              <p className="font-medium">{admin.full_name ?? 'Admin'}</p>
-              <p className="text-xs text-muted-foreground font-normal">{admin.email}</p>
-              <p className="text-xs text-muted-foreground font-normal capitalize mt-0.5">
-                {admin.role.replace('_', ' ')}
-              </p>
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {admin.role === 'super_admin' && (
-              <DropdownMenuItem onClick={() => router.push('/overview')} className="cursor-pointer">
-                Overview
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-9 px-2 gap-2.5 rounded-xl hover:bg-muted/70 focus-visible:ring-1">
+                <Avatar className="h-7 w-7 ring-2 ring-border/50 transition-transform hover:scale-105">
+                  <AvatarFallback
+                    className="text-xs font-semibold"
+                    style={{ backgroundColor: accentHex + '20', color: accentHex }}
+                  >
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="flex flex-col text-left hidden sm:flex">
+                  <span className="text-xs font-semibold leading-none truncate max-w-[120px]">
+                    {admin.full_name ?? admin.email.split('@')[0]}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground font-normal capitalize mt-0.5">
+                    {admin.role.replace('_', ' ')}
+                  </span>
+                </div>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56 glass-card rounded-xl p-1.5 shadow-xl">
+              <DropdownMenuLabel className="px-2.5 py-2">
+                <p className="font-semibold text-sm">{admin.full_name ?? 'Admin'}</p>
+                <p className="text-xs text-muted-foreground font-normal truncate mt-0.5">{admin.email}</p>
+                <div className="mt-2 inline-flex items-center gap-1 rounded-md bg-muted px-2 py-0.5 text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+                  {admin.role.replace('_', ' ')}
+                </div>
+              </DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {admin.role === 'super_admin' && (
+                <DropdownMenuItem onClick={() => router.push('/overview')} className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium">
+                  Overview
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuItem onClick={() => router.push('/activity')} className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium">
+                Activity Log
               </DropdownMenuItem>
-            )}
-            <DropdownMenuItem onClick={() => router.push('/activity')} className="cursor-pointer">
-              Activity Log
-            </DropdownMenuItem>
-            {admin.role === 'super_admin' && (
-              <DropdownMenuItem onClick={() => router.push('/team')} className="cursor-pointer">
-                Team Management
+              {admin.role === 'super_admin' && (
+                <DropdownMenuItem onClick={() => router.push('/team')} className="cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium">
+                  Team Management
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive cursor-pointer rounded-lg px-2.5 py-1.5 text-xs font-medium">
+                <LogOut className="mr-2 h-3.5 w-3.5" />
+                Sign out
               </DropdownMenuItem>
-            )}
-            <DropdownMenuSeparator />
-            <DropdownMenuItem onClick={handleSignOut} className="text-destructive focus:text-destructive cursor-pointer">
-              <LogOut className="mr-2 h-4 w-4" />
-              Sign out
-            </DropdownMenuItem>
-          </DropdownMenuContent>
+            </DropdownMenuContent>
           </DropdownMenu>
         </div>
       </header>

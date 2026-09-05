@@ -118,32 +118,32 @@ export function CommandPalette() {
     <>
       {/* Backdrop */}
       <div
-        className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+        className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md animate-in fade-in-0 duration-200"
         onClick={() => { setOpen(false); setQuery(''); setRecordResults([]); }}
         aria-hidden="true"
       />
 
       {/* Palette */}
-      <div className="fixed left-1/2 top-[20vh] z-50 w-full max-w-lg -translate-x-1/2">
+      <div className="fixed left-1/2 top-[18vh] z-50 w-full max-w-xl -translate-x-1/2 px-4 animate-in zoom-in-95 fade-in-0 duration-200">
         <Command
-          className="rounded-2xl border bg-card shadow-2xl overflow-hidden"
+          className="rounded-2xl border border-border/60 bg-card/95 backdrop-blur-2xl shadow-2xl overflow-hidden glass-card card-highlight"
           shouldFilter={false}
         >
           {/* Search input */}
-          <div className="flex items-center gap-3 border-b px-4 py-3">
+          <div className="flex items-center gap-3 border-b border-border/40 px-4 py-3.5 bg-muted/20">
             {isSearching ? (
-              <Loader2 className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" />
+              <Loader2 className="h-4 w-4 text-primary shrink-0 animate-spin" />
             ) : (
               <Search className="h-4 w-4 text-muted-foreground shrink-0" />
             )}
             <Command.Input
               value={query}
               onValueChange={setQuery}
-              placeholder="Search pages, orders, bookings, customers…"
+              placeholder="Search workspaces, orders, bookings, customers…"
               autoFocus
-              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
+              className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground/70"
             />
-            <kbd className="rounded bg-muted px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono">ESC</kbd>
+            <kbd className="rounded-md border border-border/70 bg-muted/80 px-1.5 py-0.5 text-[10px] text-muted-foreground font-mono shadow-2xs">ESC</kbd>
           </div>
 
           <Command.List className="max-h-80 overflow-y-auto py-2 px-2">

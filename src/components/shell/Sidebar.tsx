@@ -49,7 +49,7 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
   return (
     <aside
       className={cn(
-        'relative flex h-screen flex-col border-r bg-card transition-all duration-300 shrink-0',
+        'relative flex h-screen flex-col border-r border-border/50 bg-card/85 backdrop-blur-xl transition-all duration-300 shrink-0 z-20',
         collapsed ? 'w-16' : 'w-64'
       )}
     >
@@ -62,7 +62,7 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
         />
       </div>
 
-      <Separator />
+      <Separator className="bg-border/50" />
 
       {/* Navigation */}
       <ScrollArea className="flex-1 px-2 py-2">

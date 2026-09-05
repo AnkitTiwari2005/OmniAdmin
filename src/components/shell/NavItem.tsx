@@ -20,15 +20,18 @@ export function SidebarNavItem({ item, collapsed, accentHex }: NavItemProps) {
     <Link
       href={item.href}
       className={cn(
-        'group flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-all duration-150',
+        'group relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-all duration-200',
         isActive
-          ? 'text-white'
-          : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          ? 'text-white shadow-xs font-semibold'
+          : 'text-muted-foreground hover:text-foreground hover:bg-muted/60 active:scale-[0.98]'
       )}
       style={isActive ? { backgroundColor: accentHex } : undefined}
       title={collapsed ? item.label : undefined}
     >
-      <Icon className="h-4 w-4 shrink-0" />
+      <Icon className={cn(
+        'h-4 w-4 shrink-0 transition-transform duration-200 group-hover:scale-110',
+        isActive ? 'text-white' : 'text-muted-foreground group-hover:text-foreground'
+      )} />
       {!collapsed && <span className="truncate">{item.label}</span>}
     </Link>
   );

@@ -5,7 +5,7 @@
 /* ── Design tokens (light mode) ─────────────────────────────── */
 @layer base {
   :root {
-    --background:    0 0% 98%;
+    --background:    0 0% 98.5%;
     --foreground:    224 71% 4%;
     --card:          0 0% 100%;
     --card-foreground: 224 71% 4%;
@@ -21,32 +21,32 @@
     --accent-foreground: 222 47% 11%;
     --destructive:   0 84% 60%;
     --destructive-foreground: 0 0% 98%;
-    --border:        214 32% 91%;
-    --input:         214 32% 91%;
+    --border:        214 32% 90%;
+    --input:         214 32% 90%;
     --ring:          222 47% 11%;
-    --radius:        0.5rem;
+    --radius:        0.65rem;
   }
 
   /* ── Dark mode ─────────────────────────────────────────────── */
   .dark {
-    --background:    222 47% 5%;
-    --foreground:    210 40% 97%;
-    --card:          222 47% 8%;
-    --card-foreground: 210 40% 97%;
-    --popover:       222 47% 8%;
-    --popover-foreground: 210 40% 97%;
-    --primary:       210 40% 97%;
+    --background:    224 71% 3.5%;
+    --foreground:    210 40% 98%;
+    --card:          224 71% 5.5%;
+    --card-foreground: 210 40% 98%;
+    --popover:       224 71% 5.5%;
+    --popover-foreground: 210 40% 98%;
+    --primary:       210 40% 98%;
     --primary-foreground: 222 47% 11%;
-    --secondary:     217 33% 14%;
-    --secondary-foreground: 210 40% 97%;
-    --muted:         217 33% 14%;
+    --secondary:     217 33% 12%;
+    --secondary-foreground: 210 40% 98%;
+    --muted:         217 33% 12%;
     --muted-foreground: 215 20% 55%;
-    --accent:        217 33% 14%;
-    --accent-foreground: 210 40% 97%;
+    --accent:        217 33% 12%;
+    --accent-foreground: 210 40% 98%;
     --destructive:   0 63% 31%;
-    --destructive-foreground: 210 40% 97%;
-    --border:        217 33% 17%;
-    --input:         217 33% 17%;
+    --destructive-foreground: 210 40% 98%;
+    --border:        217 33% 14%;
+    --input:         217 33% 14%;
     --ring:          212 27% 84%;
   }
 
@@ -55,15 +55,15 @@
   }
 
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground antialiased selection:bg-indigo-500/20 selection:text-indigo-400;
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 
-  /* Custom scrollbar */
-  ::-webkit-scrollbar { width: 6px; height: 6px; }
-  ::-webkit-scrollbar-track { @apply bg-transparent; }
-  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/40; }
+  /* Custom sleek scrollbar */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border/80 rounded-full transition-colors; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/50; }
 }
 
 /* ── Workspace accent overrides (applied via data-workspace attr) ─ */
@@ -79,13 +79,54 @@
   --ws-accent: 38 92% 50%;            /* #D97706 in HSL */
   --ws-accent-light: 38 92% 95%;
 }
+[data-workspace="overview"] {
+  --ws-accent: 239 84% 60%;           /* #4F46E5 in HSL */
+  --ws-accent-light: 239 84% 94%;
+}
 
 /* ── Typography scale ─────────────────────────────────────────── */
 @layer base {
   h1 { @apply text-3xl font-semibold tracking-tight; }
   h2 { @apply text-2xl font-semibold tracking-tight; }
-  h3 { @apply text-lg font-semibold; }
+  h3 { @apply text-lg font-semibold tracking-tight; }
   h4 { @apply text-base font-semibold; }
+}
+
+/* ── Peak-level UI Utilities ──────────────────────────────────── */
+@layer utilities {
+  /* Ambient lighting & mesh gradients */
+  .bg-ambient-grid {
+    background-image: radial-gradient(circle at center, rgba(120, 119, 198, 0.05) 0%, transparent 70%);
+  }
+
+  /* Glassmorphism */
+  .glass-card {
+    @apply bg-card/80 backdrop-blur-xl border border-border/50 shadow-sm transition-all duration-200;
+  }
+
+  .glass-panel {
+    @apply bg-card/60 backdrop-blur-2xl border border-border/40;
+  }
+
+  /* Hairline top highlight */
+  .card-highlight {
+    position: relative;
+  }
+  .card-highlight::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
+    pointer-events: none;
+  }
+
+  /* Smooth hover lift */
+  .hover-lift {
+    @apply transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md;
+  }
 }
 
 /* ── Skeleton shimmer ─────────────────────────────────────────── */
