@@ -24,6 +24,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { exportToCsv } from '@/lib/export-csv';
+import { EmptyState } from '@/components/ui/empty-state';
 import {
   BOOKING_STATUS_COLORS,
   BOOKING_STATUS_LABELS,
@@ -201,8 +202,12 @@ export function BookingsTable({
           <TableBody>
             {bookings.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={9} className="text-center py-12 text-muted-foreground">
-                  No bookings found
+                <TableCell colSpan={9} className="p-0">
+                  <EmptyState
+                    icon={Calendar}
+                    title="No bookings found"
+                    description={currentSearch ? `No bookings matching "${currentSearch}"` : 'No service bookings in this workspace yet.'}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

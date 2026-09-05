@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/hooks/use-toast';
 import {
   createBuildKartCategory,
@@ -162,9 +163,13 @@ export function CategoriesPanel({ categories }: Props) {
           <TableBody>
             {categories.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                  <Tag className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  No categories yet
+                <TableCell colSpan={4} className="p-0">
+                  <EmptyState
+                    icon={Tag}
+                    title="No categories found"
+                    description="No product categories configured in this catalog yet."
+                    action={{ label: 'Add Category', onClick: openCreate }}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

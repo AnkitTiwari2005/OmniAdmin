@@ -15,6 +15,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { formatDate } from '@/lib/utils';
 import { exportToCsv } from '@/lib/export-csv';
+import { EmptyState } from '@/components/ui/empty-state';
 import { Users, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 interface CustomerItem {
@@ -117,9 +118,12 @@ export function CustomersTable({
           <TableBody>
             {customers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={4} className="text-center py-12 text-muted-foreground">
-                  <Users className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  No customers found
+                <TableCell colSpan={4} className="p-0">
+                  <EmptyState
+                    icon={Users}
+                    title="No customers found"
+                    description={currentSearch ? `No customer accounts matching "${currentSearch}"` : 'No registered customers found in this directory.'}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

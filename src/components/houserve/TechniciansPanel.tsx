@@ -23,6 +23,7 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/hooks/use-toast';
 import {
   Wrench,
@@ -194,9 +195,13 @@ export function TechniciansPanel({ technicians, promotableCustomers }: Props) {
           <TableBody>
             {filteredTechs.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  <Wrench className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  No technicians found matching criteria
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState
+                    icon={Wrench}
+                    title="No technicians found"
+                    description={search ? `No technicians matching "${search}"` : 'No technicians assigned to the team yet.'}
+                    action={{ label: 'Promote Customer to Technician', onClick: () => setPromoteOpen(true) }}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

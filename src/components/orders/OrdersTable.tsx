@@ -25,6 +25,7 @@ import {
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { exportToCsv } from '@/lib/export-csv';
+import { EmptyState } from '@/components/ui/empty-state';
 import { updateShudhhamOrderStatus } from '@/integrations/shudhham/actions';
 import { updateBuildKartOrderStatus } from '@/integrations/buildkart/actions';
 import type { ShudhhamOrder } from '@/integrations/shudhham/queries';
@@ -190,9 +191,12 @@ export function OrdersTable({
           <TableBody>
             {orders.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center py-12 text-muted-foreground">
-                  <ShoppingBag className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  No orders found
+                <TableCell colSpan={7} className="p-0">
+                  <EmptyState
+                    icon={ShoppingBag}
+                    title="No orders found"
+                    description={currentSearch ? `No orders matching "${currentSearch}"` : 'No orders placed yet in this workspace.'}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

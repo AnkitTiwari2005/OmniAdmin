@@ -13,6 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Textarea } from '@/components/ui/textarea';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ImageUpload } from '@/components/ui/image-upload';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import {
@@ -23,7 +24,7 @@ import {
 } from '@/integrations/shudhham/actions';
 import type { ShudhhamProduct } from '@/integrations/shudhham/queries';
 import { shudhhamProductSchema } from '@/lib/validation/schemas';
-import { Plus, Pencil, Trash2, Search, Loader2, CheckSquare } from 'lucide-react';
+import { Plus, Pencil, Trash2, Search, Loader2, CheckSquare, Package } from 'lucide-react';
 
 interface Props {
   products: ShudhhamProduct[];
@@ -255,8 +256,13 @@ export function ShudhhamProductsPanel({
           <TableBody>
             {products.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  No products found
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState
+                    icon={Package}
+                    title="No products found"
+                    description={currentSearch ? `No products matching "${currentSearch}"` : 'No products in this catalog yet.'}
+                    action={{ label: 'Add Product', onClick: openCreate }}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

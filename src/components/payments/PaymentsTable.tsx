@@ -16,6 +16,7 @@ import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { exportToCsv } from '@/lib/export-csv';
+import { EmptyState } from '@/components/ui/empty-state';
 import { CreditCard, Search, ChevronLeft, ChevronRight, Download } from 'lucide-react';
 
 interface PaymentItem {
@@ -132,9 +133,12 @@ export function PaymentsTable({
           <TableBody>
             {payments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  <CreditCard className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  No payments found
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState
+                    icon={CreditCard}
+                    title="No payments found"
+                    description={currentSearch ? `No payment transactions matching "${currentSearch}"` : 'No payment records found in this workspace.'}
+                  />
                 </TableCell>
               </TableRow>
             ) : (

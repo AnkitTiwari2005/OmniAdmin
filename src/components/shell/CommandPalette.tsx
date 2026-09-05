@@ -4,9 +4,11 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { Command } from 'cmdk';
 import { WORKSPACES } from '@/lib/workspace';
+import { Badge } from '@/components/ui/badge';
+import { searchGlobalRecords, type SearchResultItem } from '@/lib/search/actions';
 import {
   LayoutDashboard, ShoppingCart, Calendar, Package,
-  Wrench, Users, CreditCard, Tag, Search, ArrowRight,
+  Wrench, Users, CreditCard, Tag, Search, ArrowRight, Loader2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -50,6 +52,8 @@ const ALL_ITEMS = buildItems();
 export function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [recordResults, setRecordResults] = useState<SearchResultItem[]>([]);
+  const [isSearching, setIsSearching] = useState(false);
   const router = useRouter();
 
   // Cmd+K / Ctrl+K to toggle
@@ -64,9 +68,33 @@ export function CommandPalette() {
     return () => document.removeEventListener('keydown', handler);
   }, []);
 
+  // Debounced live record search
+  useEffect(() => {
+    if (!query || query.trim().length < 2) {
+      setRecordResults([]);
+      setIsSearching(false);
+      return;
+    }
+
+    const timer = setTimeout(async () => {
+      setIsSearching(true);
+      try {
+        const results = await searchGlobalRecords(query);
+        setRecordResults(results);
+      } catch {
+        setRecordResults([]);
+      } finally {
+        setIsSearching(false);
+      }
+    }, 250);
+
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const runCommand = useCallback((href: string) => {
     setOpen(false);
     setQuery('');
+    setRecordResults([]);
     router.push(href);
   }, [router]);
 
@@ -83,12 +111,15 @@ export function CommandPalette() {
     }),
   })).filter((g) => g.items.length > 0);
 
+  const orderRecords = recordResults.filter((r) => r.group === 'Orders & Bookings');
+  const customerRecords = recordResults.filter((r) => r.group === 'Customers');
+
   return (
     <>
       {/* Backdrop */}
       <div
         className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
-        onClick={() => { setOpen(false); setQuery(''); }}
+        onClick={() => { setOpen(false); setQuery(''); setRecordResults([]); }}
         aria-hidden="true"
       />
 
@@ -100,11 +131,15 @@ export function CommandPalette() {
         >
           {/* Search input */}
           <div className="flex items-center gap-3 border-b px-4 py-3">
-            <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            {isSearching ? (
+              <Loader2 className="h-4 w-4 text-muted-foreground shrink-0 animate-spin" />
+            ) : (
+              <Search className="h-4 w-4 text-muted-foreground shrink-0" />
+            )}
             <Command.Input
               value={query}
               onValueChange={setQuery}
-              placeholder="Search pages…"
+              placeholder="Search pages, orders, bookings, customers…"
               autoFocus
               className="flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground"
             />
@@ -112,12 +147,67 @@ export function CommandPalette() {
           </div>
 
           <Command.List className="max-h-80 overflow-y-auto py-2 px-2">
-            {groups.length === 0 && (
+            {groups.length === 0 && recordResults.length === 0 && !isSearching && (
               <Command.Empty className="py-8 text-center text-sm text-muted-foreground">
                 No results for &quot;{query}&quot;
               </Command.Empty>
             )}
 
+            {/* Live Records: Orders & Bookings */}
+            {orderRecords.length > 0 && (
+              <Command.Group
+                heading="Orders & Bookings"
+                className="[&>[cmdk-group-heading]]:px-2 [&>[cmdk-group-heading]]:py-1.5 [&>[cmdk-group-heading]]:text-[11px] [&>[cmdk-group-heading]]:font-semibold [&>[cmdk-group-heading]]:uppercase [&>[cmdk-group-heading]]:tracking-wider [&>[cmdk-group-heading]]:text-muted-foreground"
+              >
+                {orderRecords.map((item) => (
+                  <Command.Item
+                    key={item.id}
+                    value={item.id}
+                    onSelect={() => runCommand(item.href)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors
+                      aria-selected:bg-muted/60 hover:bg-muted/40"
+                  >
+                    <ShoppingCart className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-xs leading-none truncate">{item.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.subtitle}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                      {item.badge}
+                    </Badge>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+
+            {/* Live Records: Customers */}
+            {customerRecords.length > 0 && (
+              <Command.Group
+                heading="Customers"
+                className="[&>[cmdk-group-heading]]:px-2 [&>[cmdk-group-heading]]:py-1.5 [&>[cmdk-group-heading]]:text-[11px] [&>[cmdk-group-heading]]:font-semibold [&>[cmdk-group-heading]]:uppercase [&>[cmdk-group-heading]]:tracking-wider [&>[cmdk-group-heading]]:text-muted-foreground"
+              >
+                {customerRecords.map((item) => (
+                  <Command.Item
+                    key={item.id}
+                    value={item.id}
+                    onSelect={() => runCommand(item.href)}
+                    className="flex items-center gap-3 rounded-lg px-3 py-2 text-sm cursor-pointer transition-colors
+                      aria-selected:bg-muted/60 hover:bg-muted/40"
+                  >
+                    <Users className="h-4 w-4 text-muted-foreground shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-xs leading-none truncate">{item.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5 truncate">{item.subtitle}</p>
+                    </div>
+                    <Badge variant="outline" className="text-[10px] px-1.5 py-0 font-normal">
+                      {item.badge}
+                    </Badge>
+                  </Command.Item>
+                ))}
+              </Command.Group>
+            )}
+
+            {/* Navigation Pages */}
             {groups.map((group) => (
               <Command.Group
                 key={group.label}

@@ -11,12 +11,13 @@ import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { ImageUpload } from '@/components/ui/image-upload';
+import { EmptyState } from '@/components/ui/empty-state';
 import { toast } from '@/hooks/use-toast';
 import { formatCurrency } from '@/lib/utils';
 import { createService, updateService, toggleServiceActive, deleteService } from '@/integrations/houserve/actions';
 import type { HouserveService } from '@/integrations/houserve/types';
 import { houserveServiceSchema } from '@/lib/validation/schemas';
-import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Loader2 } from 'lucide-react';
+import { Plus, Pencil, Trash2, ToggleLeft, ToggleRight, Loader2, Wrench } from 'lucide-react';
 
 interface ServiceFormProps {
   services: HouserveService[];
@@ -199,8 +200,13 @@ export function ServicesPanel({ services }: ServiceFormProps) {
           <TableBody>
             {services.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  No services yet — add your first one
+                <TableCell colSpan={6} className="p-0">
+                  <EmptyState
+                    icon={Wrench}
+                    title="No services found"
+                    description="No service offerings catalogued in Houserve yet."
+                    action={{ label: 'Add Service', onClick: openCreate }}
+                  />
                 </TableCell>
               </TableRow>
             ) : (
