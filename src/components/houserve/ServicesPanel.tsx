@@ -200,6 +200,9 @@ export function ServicesPanel({ services }: ServiceFormProps) {
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0 text-muted-foreground"
+                        role="switch"
+                        aria-checked={s.is_active}
+                        aria-label={`Toggle active status for ${s.name}`}
                         onClick={() => handleToggle(s.id, s.is_active)}
                         disabled={isPending}
                         title={s.is_active ? 'Deactivate' : 'Activate'}
@@ -216,6 +219,7 @@ export function ServicesPanel({ services }: ServiceFormProps) {
                         className="h-7 w-7 p-0"
                         onClick={() => openEdit(s)}
                         disabled={isPending}
+                        aria-label={`Edit ${s.name}`}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -228,6 +232,7 @@ export function ServicesPanel({ services }: ServiceFormProps) {
                           setDeleteName(s.name);
                         }}
                         disabled={isPending}
+                        aria-label={`Delete ${s.name}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

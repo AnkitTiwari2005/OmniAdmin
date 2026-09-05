@@ -76,6 +76,7 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
           onClick={() => setCollapsed(!collapsed)}
           className={cn('w-full justify-center text-muted-foreground', collapsed && 'px-0')}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
           {collapsed ? (
             <ChevronRight className="h-4 w-4" />

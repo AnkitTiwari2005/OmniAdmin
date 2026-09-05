@@ -227,6 +227,9 @@ export function PromotionsPanel({ promotions }: Props) {
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0 text-muted-foreground"
+                        role="switch"
+                        aria-checked={p.is_active}
+                        aria-label={`Toggle active status for ${p.title}`}
                         onClick={() => handleToggle(p.id, p.is_active)}
                         disabled={isPending}
                         title={p.is_active ? 'Deactivate' : 'Activate'}
@@ -243,6 +246,7 @@ export function PromotionsPanel({ promotions }: Props) {
                         className="h-7 w-7 p-0"
                         onClick={() => openEdit(p)}
                         disabled={isPending}
+                        aria-label={`Edit ${p.title}`}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -255,6 +259,7 @@ export function PromotionsPanel({ promotions }: Props) {
                           setDeleteTitle(p.title);
                         }}
                         disabled={isPending}
+                        aria-label={`Delete ${p.title}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

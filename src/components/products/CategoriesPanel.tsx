@@ -163,6 +163,9 @@ export function CategoriesPanel({ categories }: Props) {
                         size="sm"
                         variant="ghost"
                         className="h-7 w-7 p-0 text-muted-foreground"
+                        role="switch"
+                        aria-checked={c.is_active}
+                        aria-label={`Toggle active status for ${c.name}`}
                         onClick={() => handleToggle(c.id, c.is_active)}
                         disabled={isPending}
                         title={c.is_active ? 'Deactivate' : 'Activate'}
@@ -179,6 +182,7 @@ export function CategoriesPanel({ categories }: Props) {
                         className="h-7 w-7 p-0"
                         onClick={() => openEdit(c)}
                         disabled={isPending}
+                        aria-label={`Edit ${c.name}`}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -191,6 +195,7 @@ export function CategoriesPanel({ categories }: Props) {
                           setDeleteName(c.name);
                         }}
                         disabled={isPending}
+                        aria-label={`Delete ${c.name}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

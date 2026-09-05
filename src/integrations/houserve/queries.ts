@@ -208,8 +208,8 @@ export async function getHouserveTechnicians(): Promise<HouserveTechnician[]> {
   const db = getHouserveClient();
   const { data, error } = await db
     .from('profiles')
-    .select('id, full_name, email, phone, avatar_url')
-    .eq('role', 'technician')
+    .select('id, full_name, email, phone, avatar_url, created_at, role')
+    .in('role', ['technician', 'technician_inactive'])
     .order('full_name', { ascending: true });
   if (error) throw error;
 
@@ -231,8 +231,29 @@ export async function getHouserveTechnicians(): Promise<HouserveTechnician[]> {
 
   return ((data ?? []) as Array<Record<string, unknown>>).map((t) => ({
     ...t,
+    is_active: t.is_active !== undefined ? Boolean(t.is_active) : t.role !== 'technician_inactive',
     active_bookings: activeCountMap[t.id as string] ?? 0,
   })) as HouserveTechnician[];
+}
+
+export async function getHouservePromotableCustomers(
+  search = ''
+): Promise<Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }>> {
+  const db = getHouserveClient();
+  let query = db
+    .from('profiles')
+    .select('id, full_name, email, phone')
+    .eq('role', 'customer')
+    .order('full_name', { ascending: true })
+    .limit(20);
+
+  if (search) {
+    query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,phone.ilike.%${search}%`);
+  }
+
+  const { data, error } = await query;
+  if (error) throw error;
+  return (data ?? []) as Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }>;
 }
 
 // ── Customers ─────────────────────────────────────────────────

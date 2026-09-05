@@ -98,7 +98,10 @@ export interface HouserveTechnician {
   email: string | null;
   phone: string | null;
   avatar_url: string | null;
+  role?: string;
+  is_active?: boolean;
   active_bookings?: number;
+  created_at?: string;
 }
 
 export interface HouserveCustomer {

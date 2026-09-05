@@ -238,6 +238,7 @@ export function ShudhhamProductsPanel({
                         className="h-7 w-7 p-0"
                         onClick={() => openEdit(p)}
                         disabled={isPending}
+                        aria-label={`Edit ${p.name}`}
                       >
                         <Pencil className="h-3.5 w-3.5" />
                       </Button>
@@ -250,6 +251,7 @@ export function ShudhhamProductsPanel({
                           setDeleteName(p.name);
                         }}
                         disabled={isPending}
+                        aria-label={`Delete ${p.name}`}
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>

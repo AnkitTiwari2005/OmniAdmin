@@ -147,3 +147,69 @@ export async function deletePromotion(id: string) {
   revalidatePath('/houserve/promotions');
   return { success: true };
 }
+
+// ── Technician mutations ───────────────────────────────────────
+
+export async function promoteCustomerToTechnician(customerId: string) {
+  const db = await requireHouserve();
+  // Try setting role to technician and is_active to true
+  const { error } = await table(db, 'profiles')
+    .update({ role: 'technician', is_active: true, updated_at: new Date().toISOString() })
+    .eq('id', customerId);
+
+  if (error) {
+    // If is_active column does not exist yet, fallback to updating role only
+    const { error: retryErr } = await table(db, 'profiles')
+      .update({ role: 'technician', updated_at: new Date().toISOString() })
+      .eq('id', customerId);
+    if (retryErr) return { error: retryErr.message };
+  }
+
+  revalidatePath('/houserve/technicians');
+  return { success: true };
+}
+
+export async function demoteTechnicianToCustomer(technicianId: string) {
+  const db = await requireHouserve();
+  const { error } = await table(db, 'profiles')
+    .update({ role: 'customer', updated_at: new Date().toISOString() })
+    .eq('id', technicianId);
+
+  if (error) return { error: error.message };
+  revalidatePath('/houserve/technicians');
+  return { success: true };
+}
+
+export async function updateTechnician(
+  id: string,
+  input: { full_name?: string; phone?: string; email?: string }
+) {
+  const db = await requireHouserve();
+  const { error } = await table(db, 'profiles')
+    .update({ ...input, updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) return { error: error.message };
+  revalidatePath('/houserve/technicians');
+  return { success: true };
+}
+
+export async function toggleTechnicianActive(id: string, isActive: boolean) {
+  const db = await requireHouserve();
+  // Try updating is_active column
+  const { error } = await table(db, 'profiles')
+    .update({ is_active: isActive, role: isActive ? 'technician' : 'technician_inactive', updated_at: new Date().toISOString() })
+    .eq('id', id);
+
+  if (error) {
+    // Fallback to role-only if is_active column is not present
+    const { error: retryErr } = await table(db, 'profiles')
+      .update({ role: isActive ? 'technician' : 'technician_inactive', updated_at: new Date().toISOString() })
+      .eq('id', id);
+    if (retryErr) return { error: retryErr.message };
+  }
+
+  revalidatePath('/houserve/technicians');
+  return { success: true };
+}
+

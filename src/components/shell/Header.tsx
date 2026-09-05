@@ -64,6 +64,7 @@ export function Header({ admin, workspaceName, accentHex }: HeaderProps) {
             window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true, ctrlKey: true, bubbles: true }));
           }}
           className="hidden md:flex items-center gap-2 rounded-lg border bg-muted/40 px-3 py-1.5 text-sm text-muted-foreground hover:bg-muted/70 transition-colors"
+          aria-label="Search pages and commands"
         >
           <Search className="h-3.5 w-3.5" />
           <span>Search pages…</span>

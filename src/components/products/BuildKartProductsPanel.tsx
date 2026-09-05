@@ -371,9 +371,12 @@ export function BuildKartProductsPanel({
                     {(['is_active', 'is_featured', 'is_bestseller'] as const).map((field) => (
                       <TableCell key={field}>
                         <button
+                          role="switch"
+                          aria-checked={Boolean(p[field])}
+                          aria-label={`Toggle ${field.replace('is_', '')} for ${p.name}`}
                           onClick={() => handleToggle(p.id, field, p[field])}
                           disabled={isPending}
-                          className={`w-10 h-5 rounded-full transition-colors relative ${p[field] ? 'bg-green-500' : 'bg-muted'}`}
+                          className={`w-10 h-5 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-amber-500 ${p[field] ? 'bg-green-500' : 'bg-muted'}`}
                           title={p[field] ? 'Click to disable' : 'Click to enable'}
                         >
                           <span
@@ -390,6 +393,7 @@ export function BuildKartProductsPanel({
                           className="h-7 w-7 p-0"
                           onClick={() => openEdit(p)}
                           disabled={isPending}
+                          aria-label={`Edit ${p.name}`}
                         >
                           <Pencil className="h-3.5 w-3.5" />
                         </Button>
@@ -402,6 +406,7 @@ export function BuildKartProductsPanel({
                             setDeleteName(p.name);
                           }}
                           disabled={isPending}
+                          aria-label={`Delete ${p.name}`}
                         >
                           <Trash2 className="h-3.5 w-3.5" />
                         </Button>
