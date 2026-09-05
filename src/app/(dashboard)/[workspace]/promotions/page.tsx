@@ -4,9 +4,19 @@ import { getWorkspaceOrNull } from '@/lib/workspace';
 import { PageHeader } from '@/components/shell/PageHeader';
 import { getHouservePromotions } from '@/integrations/houserve/queries';
 import { PromotionsPanel } from '@/components/houserve/PromotionsPanel';
-import { Sparkles } from 'lucide-react';
 
-export default async function HouservePromotionsPage() {
+interface Props {
+  params: Promise<{ workspace: string }>;
+}
+
+export default async function WorkspacePromotionsPage({ params }: Props) {
+  const { workspace } = await params;
+
+  // Promotions are currently specific to Houserve
+  if (workspace !== 'houserve') {
+    notFound();
+  }
+
   await requireWorkspaceAccess('houserve');
   const ws = getWorkspaceOrNull('houserve');
   if (!ws) notFound();
@@ -29,7 +39,7 @@ export default async function HouservePromotionsPage() {
     const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="Promotions" description={ws.name} />
+        <PageHeader title="Promotions & Banners" description={ws.name} />
         <NotConfiguredCard workspaceName={ws.name} envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />
       </div>
     );

@@ -1,10 +1,9 @@
 'use client';
 
-import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { WORKSPACES } from '@/lib/workspace';
-import type { WorkspaceSlug } from '@/lib/workspace';
+import { WORKSPACES, OVERVIEW_CONFIG } from '@/lib/workspace';
+import type { WorkspaceSlug, DashboardWorkspaceSlug, WorkspaceConfig } from '@/lib/workspace';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -16,7 +15,7 @@ import {
 import { ChevronDown, Check, LayoutGrid } from 'lucide-react';
 
 interface WorkspaceSwitcherProps {
-  currentSlug: WorkspaceSlug;
+  currentSlug: DashboardWorkspaceSlug;
   collapsed: boolean;
   allowedWorkspaces: WorkspaceSlug[];
 }
@@ -26,9 +25,14 @@ export function WorkspaceSwitcher({
   collapsed,
   allowedWorkspaces,
 }: WorkspaceSwitcherProps) {
-  const current = WORKSPACES.find((w) => w.slug === currentSlug)!;
+  const current: WorkspaceConfig =
+    currentSlug === 'overview'
+      ? OVERVIEW_CONFIG
+      : WORKSPACES.find((w) => w.slug === currentSlug) || OVERVIEW_CONFIG;
+
   const Icon = current.icon;
   const router = useRouter();
+  const isOverview = currentSlug === 'overview';
 
   const available = WORKSPACES.filter((w) => allowedWorkspaces.includes(w.slug));
 
@@ -37,24 +41,31 @@ export function WorkspaceSwitcher({
       <DropdownMenuTrigger asChild>
         <button
           className={cn(
-            'flex w-full items-center gap-3 rounded-xl p-3 text-white transition-all hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40',
-            collapsed ? 'justify-center' : 'justify-between'
+            'flex items-center text-white transition-all hover:opacity-90 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 shadow-xs',
+            collapsed
+              ? 'h-10 w-10 p-0 rounded-xl justify-center mx-auto shrink-0'
+              : 'w-full gap-2.5 rounded-xl p-2.5 justify-between'
           )}
           style={{ backgroundColor: current.accentHex }}
           title={collapsed ? current.name : undefined}
+          aria-label={current.name}
         >
-          <div className="flex items-center gap-2.5 min-w-0">
-            <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/20">
-              <Icon className="h-4 w-4" />
-            </div>
-            {!collapsed && (
-              <div className="min-w-0 text-left">
-                <p className="truncate text-sm font-semibold leading-none">{current.name}</p>
-                <p className="mt-0.5 truncate text-xs text-white/70">{current.description}</p>
+          {collapsed ? (
+            <Icon className="h-5 w-5 shrink-0" />
+          ) : (
+            <>
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-white/20">
+                  <Icon className="h-4 w-4" />
+                </div>
+                <div className="min-w-0 text-left">
+                  <p className="truncate text-sm font-semibold leading-none">{current.name}</p>
+                  <p className="mt-0.5 truncate text-[11px] text-white/70">{current.description}</p>
+                </div>
               </div>
-            )}
-          </div>
-          {!collapsed && <ChevronDown className="h-4 w-4 shrink-0 text-white/70" />}
+              <ChevronDown className="h-4 w-4 shrink-0 text-white/70" />
+            </>
+          )}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -72,13 +83,17 @@ export function WorkspaceSwitcher({
               onClick={() => router.push('/overview')}
               className="flex items-center gap-3 cursor-pointer"
             >
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary">
-                <LayoutGrid className="h-4 w-4" />
+              <div
+                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg"
+                style={{ backgroundColor: OVERVIEW_CONFIG.accentHex + '20' }}
+              >
+                <LayoutGrid className="h-4 w-4" style={{ color: OVERVIEW_CONFIG.accentHex }} />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium">All Businesses</p>
                 <p className="text-xs text-muted-foreground truncate">Cross-portfolio overview</p>
               </div>
+              {isOverview && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
           </>
@@ -102,7 +117,7 @@ export function WorkspaceSwitcher({
                 <p className="text-sm font-medium">{ws.name}</p>
                 <p className="text-xs text-muted-foreground truncate">{ws.description}</p>
               </div>
-              {isSelected && <Check className="h-4 w-4 text-muted-foreground" />}
+              {isSelected && <Check className="h-4 w-4 text-primary" />}
             </DropdownMenuItem>
           );
         })}

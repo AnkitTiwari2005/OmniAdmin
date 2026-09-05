@@ -27,10 +27,13 @@ import {
   Tag,
   Settings,
   Sparkles,
+  LayoutGrid,
+  Activity,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 export type WorkspaceSlug = 'shudhham' | 'houserve' | 'buildkart';
+export type DashboardWorkspaceSlug = WorkspaceSlug | 'overview';
 
 export interface NavItem {
   label: string;
@@ -107,13 +110,30 @@ export const WORKSPACES: WorkspaceConfig[] = [
   },
 ];
 
+export const OVERVIEW_CONFIG: WorkspaceConfig = {
+  slug: 'overview' as any,
+  name: 'All Businesses',
+  description: 'Cross-business operations',
+  accentBg: 'bg-indigo-600',
+  accentText: 'text-indigo-600',
+  accentHex: '#4F46E5',
+  icon: LayoutGrid,
+  nav: [
+    { label: 'Overview', href: '/overview', icon: LayoutGrid },
+    { label: 'Activity Log', href: '/activity', icon: Activity },
+    { label: 'Team', href: '/team', icon: Users },
+  ],
+};
+
 export function getWorkspace(slug: string): WorkspaceConfig {
+  if (slug === 'overview') return OVERVIEW_CONFIG;
   const ws = WORKSPACES.find((w) => w.slug === slug);
   if (!ws) throw new Error(`Unknown workspace: ${slug}`);
   return ws;
 }
 
 export function getWorkspaceOrNull(slug: string): WorkspaceConfig | null {
+  if (slug === 'overview') return OVERVIEW_CONFIG;
   return WORKSPACES.find((w) => w.slug === slug) ?? null;
 }
 

@@ -89,6 +89,13 @@ export const teamMemberRemoveSchema = z.object({
 
 // ── Houserve Technicians ──────────────────────────────────────
 
+export const technicianCreateSchema = z.object({
+  full_name: z.string().trim().min(2, 'Name must be at least 2 characters'),
+  email: z.string().trim().email('Please enter a valid email address'),
+  phone: z.string().trim().min(7, 'Phone number must be at least 7 digits'),
+  password: z.string().min(6, 'Password must be at least 6 characters').optional(),
+});
+
 export const technicianPromoteSchema = z.object({
   customerId: z.string().uuid('Invalid customer ID'),
 });

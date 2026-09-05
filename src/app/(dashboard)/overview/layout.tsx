@@ -12,9 +12,9 @@ export default async function OverviewLayout({ children }: { children: React.Rea
       : [admin.role.replace('_admin', '') as WorkspaceSlug];
 
   return (
-    <div className="flex h-screen overflow-hidden" data-workspace="shudhham">
+    <div className="flex h-screen overflow-hidden" data-workspace="overview">
       <Sidebar
-        workspaceSlug={DEFAULT_WORKSPACE}
+        workspaceSlug="overview"
         adminRole={admin.role}
         allowedWorkspaces={allowedWorkspaces}
       />

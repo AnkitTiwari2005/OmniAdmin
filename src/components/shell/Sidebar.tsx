@@ -7,19 +7,22 @@ import { Button } from '@/components/ui/button';
 import { WorkspaceSwitcher } from './WorkspaceSwitcher';
 import { SidebarNavItem } from './NavItem';
 import { cn } from '@/lib/utils';
-import { WORKSPACES } from '@/lib/workspace';
-import type { WorkspaceSlug } from '@/lib/workspace';
+import { WORKSPACES, OVERVIEW_CONFIG } from '@/lib/workspace';
+import type { WorkspaceSlug, DashboardWorkspaceSlug } from '@/lib/workspace';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 
 interface SidebarProps {
-  workspaceSlug: WorkspaceSlug;
+  workspaceSlug: DashboardWorkspaceSlug;
   adminRole: string;
   allowedWorkspaces: WorkspaceSlug[];
 }
 
 export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: SidebarProps) {
   // Look up workspace config on the client — avoids passing non-serializable icon components from Server
-  const workspace = WORKSPACES.find((w) => w.slug === workspaceSlug)!;
+  const workspace =
+    workspaceSlug === 'overview'
+      ? OVERVIEW_CONFIG
+      : WORKSPACES.find((w) => w.slug === workspaceSlug) || OVERVIEW_CONFIG;
 
   const [collapsed, setCollapsed] = useState(false);
 
@@ -36,6 +39,13 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const navItems = workspace.nav.filter((item) => {
+    if (item.href === '/team' && adminRole !== 'super_admin') return false;
+    return true;
+  });
+
+  const availableWorkspaces = WORKSPACES.filter((w) => allowedWorkspaces.includes(w.slug));
+
   return (
     <aside
       className={cn(
@@ -46,7 +56,7 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
       {/* Workspace switcher */}
       <div className="p-3">
         <WorkspaceSwitcher
-          currentSlug={workspace.slug}
+          currentSlug={workspace.slug as DashboardWorkspaceSlug}
           collapsed={collapsed}
           allowedWorkspaces={allowedWorkspaces}
         />
@@ -57,7 +67,7 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
       {/* Navigation */}
       <ScrollArea className="flex-1 px-2 py-2">
         <nav className="flex flex-col gap-1">
-          {workspace.nav.map((item) => (
+          {navItems.map((item) => (
             <SidebarNavItem
               key={item.href}
               item={item}
@@ -65,6 +75,31 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
               accentHex={workspace.accentHex}
             />
           ))}
+
+          {/* Quick Workspace Switcher for Overview mode */}
+          {workspaceSlug === 'overview' && (
+            <>
+              <div className="pt-4 pb-1 px-2">
+                {!collapsed && (
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Workspaces
+                  </p>
+                )}
+              </div>
+              {availableWorkspaces.map((ws) => (
+                <SidebarNavItem
+                  key={ws.slug}
+                  item={{
+                    label: ws.name,
+                    href: `/${ws.slug}`,
+                    icon: ws.icon,
+                  }}
+                  collapsed={collapsed}
+                  accentHex={ws.accentHex}
+                />
+              ))}
+            </>
+          )}
         </nav>
       </ScrollArea>
 

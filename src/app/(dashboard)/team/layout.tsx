@@ -1,4 +1,4 @@
-﻿import { requireSuperAdmin } from '@/lib/auth';
+import { requireSuperAdmin } from '@/lib/auth';
 import { WORKSPACES, DEFAULT_WORKSPACE } from '@/lib/workspace';
 import type { WorkspaceSlug } from '@/lib/workspace';
 import { Sidebar } from '@/components/shell/Sidebar';
@@ -9,9 +9,9 @@ export default async function TeamLayout({ children }: { children: React.ReactNo
   const allowedWorkspaces: WorkspaceSlug[] = WORKSPACES.map((w) => w.slug);
 
   return (
-    <div className="flex h-screen overflow-hidden" data-workspace="shudhham">
+    <div className="flex h-screen overflow-hidden" data-workspace="overview">
       <Sidebar
-        workspaceSlug={DEFAULT_WORKSPACE}
+        workspaceSlug="overview"
         adminRole={admin.role}
         allowedWorkspaces={allowedWorkspaces}
       />

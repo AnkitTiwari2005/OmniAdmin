@@ -4,6 +4,7 @@ import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import type { HouserveTechnician } from '@/integrations/houserve/types';
 import {
+  createTechnician,
   promoteCustomerToTechnician,
   demoteTechnicianToCustomer,
   updateTechnician,
@@ -28,12 +29,13 @@ import { toast } from '@/hooks/use-toast';
 import {
   Wrench,
   UserPlus,
+  Plus,
   Edit2,
   UserMinus,
   Search,
   CheckCircle2,
   Clock,
-  Power,
+  Loader2,
 } from 'lucide-react';
 
 interface Props {
@@ -48,8 +50,12 @@ export function TechniciansPanel({ technicians, promotableCustomers }: Props) {
   // Filter state
   const [search, setSearch] = useState('');
 
-  // Promote Dialog state
-  const [promoteOpen, setPromoteOpen] = useState(false);
+  // Add Technician Dialog state
+  const [addOpen, setAddOpen] = useState(false);
+  const [addTab, setAddTab] = useState<'create' | 'promote'>('create');
+  const [createForm, setCreateForm] = useState({ full_name: '', email: '', phone: '', password: '' });
+
+  // Promote Customer state
   const [customerSearch, setCustomerSearch] = useState('');
   const [selectedCustomerId, setSelectedCustomerId] = useState<string | null>(null);
 
@@ -87,6 +93,25 @@ export function TechniciansPanel({ technicians, promotableCustomers }: Props) {
     );
   });
 
+  function handleCreateSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    startTransition(async () => {
+      const res = await createTechnician(createForm);
+      if ('error' in res && res.error) {
+        toast({ title: 'Failed to Add Technician', description: res.error, variant: 'destructive' });
+        return;
+      }
+      toast({
+        title: 'Technician Added',
+        description: `${createForm.full_name} has been created and added to active technicians.`,
+        variant: 'success',
+      });
+      setAddOpen(false);
+      setCreateForm({ full_name: '', email: '', phone: '', password: '' });
+      router.refresh();
+    });
+  }
+
   function handlePromote() {
     if (!selectedCustomerId) return;
     startTransition(async () => {
@@ -96,7 +121,7 @@ export function TechniciansPanel({ technicians, promotableCustomers }: Props) {
         return;
       }
       toast({ title: 'Technician Promoted', description: 'Customer promoted to technician successfully', variant: 'success' });
-      setPromoteOpen(false);
+      setAddOpen(false);
       setSelectedCustomerId(null);
       router.refresh();
     });
@@ -173,9 +198,9 @@ export function TechniciansPanel({ technicians, promotableCustomers }: Props) {
             className="pl-9"
           />
         </div>
-        <Button onClick={() => setPromoteOpen(true)} className="gap-2" size="sm">
-          <UserPlus className="h-4 w-4" />
-          Promote Customer to Technician
+        <Button onClick={() => setAddOpen(true)} className="gap-2" size="sm">
+          <Plus className="h-4 w-4" />
+          Add Technician
         </Button>
       </div>
 
@@ -200,7 +225,7 @@ export function TechniciansPanel({ technicians, promotableCustomers }: Props) {
                     icon={Wrench}
                     title="No technicians found"
                     description={search ? `No technicians matching "${search}"` : 'No technicians assigned to the team yet.'}
-                    action={{ label: 'Promote Customer to Technician', onClick: () => setPromoteOpen(true) }}
+                    action={{ label: 'Add Technician', onClick: () => setAddOpen(true) }}
                   />
                 </TableCell>
               </TableRow>
@@ -299,68 +324,150 @@ export function TechniciansPanel({ technicians, promotableCustomers }: Props) {
         </Table>
       </div>
 
-      {/* Promote Customer Dialog */}
-      <Dialog open={promoteOpen} onOpenChange={setPromoteOpen}>
+      {/* Add / Promote Technician Dialog */}
+      <Dialog open={addOpen} onOpenChange={setAddOpen}>
         <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Promote Customer to Technician</DialogTitle>
+            <DialogTitle>Add Technician</DialogTitle>
             <DialogDescription>
-              Select an existing customer from Houserve to promote into the active technician pool.
+              Create a new technician from scratch or promote an existing customer.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="py-2">
-            <div className="relative mb-3">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Search customers..."
-                value={customerSearch}
-                onChange={(e) => setCustomerSearch(e.target.value)}
-                className="pl-9"
-              />
-            </div>
-
-            <div className="max-h-60 overflow-y-auto rounded-lg border divide-y">
-              {filteredCustomers.length === 0 ? (
-                <div className="p-4 text-center text-sm text-muted-foreground">
-                  No customers found to promote
-                </div>
-              ) : (
-                filteredCustomers.map((c) => {
-                  const isSelected = selectedCustomerId === c.id;
-                  return (
-                    <div
-                      key={c.id}
-                      onClick={() => setSelectedCustomerId(c.id)}
-                      className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
-                        isSelected ? 'bg-sky-50 dark:bg-sky-950/30 border-sky-500' : 'hover:bg-muted/50'
-                      }`}
-                    >
-                      <div>
-                        <div className="font-medium text-sm">{c.full_name ?? 'Customer'}</div>
-                        <div className="text-xs text-muted-foreground">{c.email ?? c.phone ?? 'No contact info'}</div>
-                      </div>
-                      {isSelected && <CheckCircle2 className="h-4 w-4 text-sky-600" />}
-                    </div>
-                  );
-                })
-              )}
-            </div>
+          {/* Toggle between Create New and Promote Existing */}
+          <div className="flex rounded-lg bg-muted p-1 gap-1 my-2">
+            <button
+              type="button"
+              onClick={() => setAddTab('create')}
+              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                addTab === 'create' ? 'bg-background shadow-xs text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              New Technician
+            </button>
+            <button
+              type="button"
+              onClick={() => setAddTab('promote')}
+              className={`flex-1 py-1.5 text-xs font-medium rounded-md transition-colors ${
+                addTab === 'promote' ? 'bg-background shadow-xs text-foreground font-semibold' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              Promote Customer ({promotableCustomers.length})
+            </button>
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setPromoteOpen(false)} disabled={isPending}>
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePromote}
-              disabled={!selectedCustomerId || isPending}
-              className="gap-2"
-            >
-              <UserPlus className="h-4 w-4" />
-              Promote to Technician
-            </Button>
-          </DialogFooter>
+          {addTab === 'create' ? (
+            <form onSubmit={handleCreateSubmit} className="space-y-3.5 pt-1">
+              <div className="space-y-1.5">
+                <Label htmlFor="create-name">Full Name *</Label>
+                <Input
+                  id="create-name"
+                  placeholder="e.g. Rajesh Kumar"
+                  value={createForm.full_name}
+                  onChange={(e) => setCreateForm({ ...createForm, full_name: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="create-email">Email Address *</Label>
+                <Input
+                  id="create-email"
+                  type="email"
+                  placeholder="technician@houserve.com"
+                  value={createForm.email}
+                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="create-phone">Phone Number *</Label>
+                <Input
+                  id="create-phone"
+                  placeholder="+91 98765 43210"
+                  value={createForm.phone}
+                  onChange={(e) => setCreateForm({ ...createForm, phone: e.target.value })}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="create-password">Temporary Password (Optional)</Label>
+                <Input
+                  id="create-password"
+                  type="password"
+                  placeholder="Auto-generated if left blank"
+                  value={createForm.password}
+                  onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
+                />
+                <p className="text-[11px] text-muted-foreground">The technician will use this password to sign in to Houserve.</p>
+              </div>
+
+              <DialogFooter className="pt-3">
+                <Button type="button" variant="outline" onClick={() => setAddOpen(false)} disabled={isPending}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isPending} className="gap-2">
+                  {isPending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+                  Create Technician
+                </Button>
+              </DialogFooter>
+            </form>
+          ) : (
+            <div className="py-2 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search existing customers..."
+                  value={customerSearch}
+                  onChange={(e) => setCustomerSearch(e.target.value)}
+                  className="pl-9"
+                />
+              </div>
+
+              <div className="max-h-60 overflow-y-auto rounded-lg border divide-y">
+                {filteredCustomers.length === 0 ? (
+                  <div className="p-4 text-center text-sm text-muted-foreground">
+                    No customers found to promote
+                  </div>
+                ) : (
+                  filteredCustomers.map((c) => {
+                    const isSelected = selectedCustomerId === c.id;
+                    return (
+                      <div
+                        key={c.id}
+                        onClick={() => setSelectedCustomerId(c.id)}
+                        className={`p-3 flex items-center justify-between cursor-pointer transition-colors ${
+                          isSelected ? 'bg-sky-50 dark:bg-sky-950/30 border-sky-500' : 'hover:bg-muted/50'
+                        }`}
+                      >
+                        <div>
+                          <div className="font-medium text-sm">{c.full_name ?? 'Customer'}</div>
+                          <div className="text-xs text-muted-foreground">{c.email ?? c.phone ?? 'No contact info'}</div>
+                        </div>
+                        {isSelected && <CheckCircle2 className="h-4 w-4 text-sky-600" />}
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+
+              <DialogFooter className="pt-2">
+                <Button variant="outline" onClick={() => setAddOpen(false)} disabled={isPending}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handlePromote}
+                  disabled={!selectedCustomerId || isPending}
+                  className="gap-2"
+                >
+                  <UserPlus className="h-4 w-4" />
+                  Promote to Technician
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
         </DialogContent>
       </Dialog>
 

@@ -10,6 +10,7 @@ import {
   assignTechnicianSchema,
   houserveServiceSchema,
   houservePromotionSchema,
+  technicianCreateSchema,
   technicianPromoteSchema,
   technicianDemoteSchema,
   technicianUpdateSchema,
@@ -462,3 +463,75 @@ export async function toggleTechnicianActive(id: string, isActive: boolean) {
   revalidatePath('/houserve/technicians');
   return { success: true };
 }
+
+export async function createTechnician(input: {
+  full_name: string;
+  email: string;
+  phone: string;
+  password?: string;
+}) {
+  const parsed = technicianCreateSchema.safeParse(input);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message || 'Invalid technician details' };
+  }
+
+  const { db, admin } = await requireHouserve();
+  const valid = parsed.data;
+
+  // Generate a temporary password if none supplied
+  const tempPassword = valid.password || ('Tech@' + Math.random().toString(36).slice(2, 10) + '!');
+
+  // 1. Create auth user in Houserve Supabase project
+  const { data: userData, error: userError } = await db.auth.admin.createUser({
+    email: valid.email,
+    password: tempPassword,
+    email_confirm: true,
+    user_metadata: {
+      full_name: valid.full_name,
+      phone: valid.phone,
+    },
+  });
+
+  if (userError) {
+    return { error: userError.message };
+  }
+
+  if (!userData.user) {
+    return { error: 'Failed to create user account for technician.' };
+  }
+
+  const userId = userData.user.id;
+
+  // 2. Insert/Upsert profile with role = 'technician'
+  const { error: profileError } = await table(db, 'profiles').upsert({
+    id: userId,
+    full_name: valid.full_name,
+    email: valid.email,
+    phone: valid.phone,
+    role: 'technician',
+    is_active: true,
+    updated_at: new Date().toISOString(),
+  });
+
+  if (profileError) {
+    // Rollback created auth user
+    await db.auth.admin.deleteUser(userId);
+    return { error: profileError.message };
+  }
+
+  // 3. Log activity
+  await logAdminActivity({
+    adminId: admin.id,
+    adminEmail: admin.email,
+    adminName: admin.full_name,
+    action: 'create',
+    workspace: 'houserve',
+    targetTable: 'profiles',
+    targetId: userId,
+    details: { full_name: valid.full_name, email: valid.email, phone: valid.phone, role: 'technician' },
+  });
+
+  revalidatePath('/houserve/technicians');
+  return { success: true, id: userId };
+}
+
