@@ -1,0 +1,101 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Design tokens (light mode) ─────────────────────────────── */
+@layer base {
+  :root {
+    --background:    0 0% 98%;
+    --foreground:    224 71% 4%;
+    --card:          0 0% 100%;
+    --card-foreground: 224 71% 4%;
+    --popover:       0 0% 100%;
+    --popover-foreground: 224 71% 4%;
+    --primary:       222 47% 11%;
+    --primary-foreground: 210 40% 98%;
+    --secondary:     214 32% 91%;
+    --secondary-foreground: 222 47% 11%;
+    --muted:         214 32% 94%;
+    --muted-foreground: 215 16% 47%;
+    --accent:        214 32% 91%;
+    --accent-foreground: 222 47% 11%;
+    --destructive:   0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border:        214 32% 91%;
+    --input:         214 32% 91%;
+    --ring:          222 47% 11%;
+    --radius:        0.5rem;
+  }
+
+  /* ── Dark mode ─────────────────────────────────────────────── */
+  .dark {
+    --background:    222 47% 5%;
+    --foreground:    210 40% 97%;
+    --card:          222 47% 8%;
+    --card-foreground: 210 40% 97%;
+    --popover:       222 47% 8%;
+    --popover-foreground: 210 40% 97%;
+    --primary:       210 40% 97%;
+    --primary-foreground: 222 47% 11%;
+    --secondary:     217 33% 14%;
+    --secondary-foreground: 210 40% 97%;
+    --muted:         217 33% 14%;
+    --muted-foreground: 215 20% 55%;
+    --accent:        217 33% 14%;
+    --accent-foreground: 210 40% 97%;
+    --destructive:   0 63% 31%;
+    --destructive-foreground: 210 40% 97%;
+    --border:        217 33% 17%;
+    --input:         217 33% 17%;
+    --ring:          212 27% 84%;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-transparent; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-muted-foreground/40; }
+}
+
+/* ── Workspace accent overrides (applied via data-workspace attr) ─ */
+[data-workspace="shudhham"] {
+  --ws-accent: 158 57% 30%;           /* #2D6A4F in HSL */
+  --ws-accent-light: 158 57% 92%;
+}
+[data-workspace="houserve"] {
+  --ws-accent: 201 90% 36%;           /* #0369A1 in HSL */
+  --ws-accent-light: 201 90% 94%;
+}
+[data-workspace="buildkart"] {
+  --ws-accent: 38 92% 50%;            /* #D97706 in HSL */
+  --ws-accent-light: 38 92% 95%;
+}
+
+/* ── Typography scale ─────────────────────────────────────────── */
+@layer base {
+  h1 { @apply text-3xl font-semibold tracking-tight; }
+  h2 { @apply text-2xl font-semibold tracking-tight; }
+  h3 { @apply text-lg font-semibold; }
+  h4 { @apply text-base font-semibold; }
+}
+
+/* ── Skeleton shimmer ─────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    hsl(var(--muted)) 25%,
+    hsl(var(--muted-foreground) / 0.1) 50%,
+    hsl(var(--muted)) 75%
+  );
+  background-size: 1000px 100%;
+  animation: shimmer 2s infinite linear;
+}
