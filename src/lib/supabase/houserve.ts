@@ -17,12 +17,11 @@ export type HouserveDB = {
       avatar_url: string | null;
       /** display only — NOT used for admin-app auth */
       role: 'customer' | 'technician' | 'admin';
-      razorpay_customer_id: string | null;
       created_at: string;
       updated_at: string;
     };
     Insert: never;
-    Update: Pick<HouserveDB['profiles']['Row'], 'role'>;
+    Update: Partial<Pick<HouserveDB['profiles']['Row'], 'role' | 'full_name' | 'phone'>>;
   };
   services: {
     Row: {
@@ -65,16 +64,16 @@ export type HouserveDB = {
       platform_fee: number;
       gst_amount: number;
       total_amount: number;
-      razorpay_order_id: string | null;
-      razorpay_payment_id: string | null;
-      payment_status: 'pending' | 'paid' | 'failed';
       stripe_payment_intent_id: string | null;
       stripe_payment_status: string | null;
       created_at: string;
       updated_at: string;
+      razorpay_order_id: string | null;
+      razorpay_payment_id: string | null;
+      payment_status: 'pending' | 'paid' | 'failed';
     };
     Insert: never;
-    Update: Pick<HouserveDB['bookings']['Row'], 'status' | 'technician_id' | 'payment_status'>;
+    Update: Partial<Pick<HouserveDB['bookings']['Row'], 'status' | 'technician_id' | 'payment_status'>>;
   };
   booking_items: {
     Row: {
@@ -116,13 +115,29 @@ export type HouserveDB = {
       user_id: string;
       title: string;
       body: string;
-      type: 'booking' | 'support' | 'promo' | 'info';
+      type: string | null;
       booking_id: string | null;
       is_read: boolean;
       created_at: string;
     };
     Insert: Omit<HouserveDB['notifications']['Row'], 'id' | 'created_at' | 'is_read'>;
     Update: Pick<HouserveDB['notifications']['Row'], 'is_read'>;
+  };
+  promotions: {
+    Row: {
+      id: string;
+      title: string;
+      subtitle: string | null;
+      cta_text: string | null;
+      bg_gradient: string | null;
+      link_path: string | null;
+      is_active: boolean;
+      sort_order: number;
+      created_at: string;
+      image_url: string | null;
+    };
+    Insert: Omit<HouserveDB['promotions']['Row'], 'id' | 'created_at'>;
+    Update: Partial<HouserveDB['promotions']['Insert']>;
   };
 };
 

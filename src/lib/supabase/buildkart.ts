@@ -25,22 +25,27 @@ export type BuildKartDB = {
     Row: {
       id: string;
       name: string;
+      brand: string | null;
+      description: string | null;
       price: number;
       original_price: number | null;
+      discount: number | null;
       category: string;
       subcategory: string | null;
-      brand: string | null;
+      images: string[] | null;
+      rating: number | null;
+      review_count: number | null;
+      stock: number | null;
       is_active: boolean;
       is_featured: boolean;
       is_bestseller: boolean;
-      rating: number | null;
-      review_count: number;
-      image_url: string | null;
-      specifications: unknown | null; // JSONB array of {key, value}
-      description: string | null;
+      variants: unknown | null;
+      specifications: unknown | null;
+      tags: string[] | null;
       created_at: string;
+      updated_at: string;
     };
-    Insert: Omit<BuildKartDB['products']['Row'], 'id' | 'created_at'>;
+    Insert: Omit<BuildKartDB['products']['Row'], 'id' | 'created_at' | 'updated_at'>;
     Update: Partial<BuildKartDB['products']['Insert']>;
   };
   categories: {
@@ -56,16 +61,29 @@ export type BuildKartDB = {
   profiles: {
     Row: {
       id: string;
-      // BuildKart profiles table has minimal columns — extend as confirmed
-      created_at?: string;
+      name: string;
+      phone: string | null;
+      email: string | null;
+      avatar_url: string | null;
+      created_at: string;
+      updated_at: string;
     };
     Insert: never;
-    Update: never;
+    Update: Partial<Pick<BuildKartDB['profiles']['Row'], 'name' | 'phone' | 'avatar_url'>>;
   };
   addresses: {
     Row: {
       id: string;
       user_id: string;
+      name: string;
+      phone: string;
+      line1: string;
+      line2: string | null;
+      city: string;
+      state: string | null;
+      pincode: string;
+      type: 'Home' | 'Work' | 'Other' | string | null;
+      is_default: boolean;
       created_at: string;
     };
     Insert: never;
@@ -75,23 +93,26 @@ export type BuildKartDB = {
     Row: {
       id: string;
       user_id: string;
-      /** JSONB blob — parse with BuildKartOrderItem[] */
-      items: BuildKartOrderItem[];
+      items: BuildKartOrderItem[] | unknown;
       total: number;
       address: Record<string, unknown> | null;
       payment_method: string | null;
       payment_id: string | null;
       status: 'Processing' | 'Shipped' | 'Delivered' | 'Cancelled';
+      timeline: unknown | null;
+      estimated_delivery: string | null;
       created_at: string;
+      updated_at: string;
     };
     Insert: never;
-    Update: Pick<BuildKartDB['orders']['Row'], 'status'>;
+    Update: Partial<Pick<BuildKartDB['orders']['Row'], 'status' | 'estimated_delivery'>>;
   };
   wishlist: {
     Row: {
       id: string;
       user_id: string;
       product_id: string;
+      created_at: string;
     };
     Insert: never;
     Update: never;
