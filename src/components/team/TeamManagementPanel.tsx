@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useState, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
@@ -10,7 +10,6 @@ import {
   toggleAdminMemberActive,
   removeAdminMember,
 } from '@/lib/team/actions';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,8 +38,19 @@ import {
   Shield,
   Trash2,
   Search,
-  Mail,
+  UserCheck,
+  UserX,
+  Crown,
+  MoreVertical,
 } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+
 
 interface Props {
   members: TeamMember[];
@@ -166,9 +176,9 @@ export function TeamManagementPanel({ members, currentAdminId }: Props) {
   }
 
   return (
-    <>
+    <div className="space-y-6">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="relative flex-1 min-w-[220px] max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
           <Input
@@ -184,141 +194,186 @@ export function TeamManagementPanel({ members, currentAdminId }: Props) {
         </Button>
       </div>
 
-      {/* Team Members Table */}
-      <div className={`rounded-xl border bg-card shadow-sm overflow-hidden transition-opacity ${isPending ? 'opacity-70' : 'opacity-100'}`}>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Administrator</TableHead>
-              <TableHead>Assigned Role</TableHead>
-              <TableHead>Access Status</TableHead>
-              <TableHead>Last Active</TableHead>
-              <TableHead>Member Since</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {filteredMembers.length === 0 ? (
-              <TableRow>
-                <TableCell colSpan={6} className="text-center py-12 text-muted-foreground">
-                  <Shield className="h-8 w-8 mx-auto mb-2 opacity-30" />
-                  No administrator profiles found
-                </TableCell>
-              </TableRow>
-            ) : (
-              filteredMembers.map((m) => {
-                const isSelf = m.id === currentAdminId;
-                const initials = (m.full_name || m.email)
-                  .split(' ')
-                  .map((n) => n[0])
-                  .join('')
-                  .toUpperCase()
-                  .slice(0, 2);
+      {/* Stat Bar */}
+      <div className="grid grid-cols-3 gap-3">
+        {[
+          { label: 'Total Members', value: members.length, icon: Shield, color: 'text-primary' },
+          { label: 'Active Admins', value: members.filter(m => m.is_active).length, icon: UserCheck, color: 'text-emerald-500' },
+          { label: 'Inactive', value: members.filter(m => !m.is_active).length, icon: UserX, color: 'text-muted-foreground' },
+        ].map(stat => (
+          <div key={stat.label} className="glass-card card-highlight rounded-2xl p-4 border border-border/50 text-center">
+            <stat.icon className={`h-5 w-5 mx-auto mb-1.5 ${stat.color}`} />
+            <p className="text-xl font-bold tabular-nums">{stat.value}</p>
+            <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{stat.label}</p>
+          </div>
+        ))}
+      </div>
 
-                return (
-                  <TableRow key={m.id}>
-                    <TableCell>
-                      <div className="flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/10 text-primary flex items-center justify-center text-xs font-semibold shrink-0">
-                          {initials}
-                        </div>
-                        <div>
-                          <div className="font-medium text-sm flex items-center gap-2">
-                            {m.full_name || 'Admin User'}
-                            {isSelf && (
-                              <Badge variant="outline" className="text-[10px] py-0 px-1 font-normal">
-                                You
-                              </Badge>
-                            )}
-                          </div>
-                          <div className="text-xs text-muted-foreground flex items-center gap-1">
-                            <Mail className="h-3 w-3" />
-                            {m.email}
-                          </div>
-                        </div>
+      {/* Card Grid */}
+      {filteredMembers.length === 0 ? (
+        <div className="glass-card rounded-2xl p-12 text-center border border-border/50">
+          <Shield className="h-12 w-12 mx-auto mb-3 opacity-20" />
+          <p className="font-semibold">No administrators found</p>
+          <p className="text-sm text-muted-foreground mt-1">Adjust your search or invite a new admin</p>
+        </div>
+      ) : (
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 transition-opacity ${isPending ? 'opacity-70' : 'opacity-100'}`}>
+          {filteredMembers.map(m => {
+            const isSelf = m.id === currentAdminId;
+            const initials = (m.full_name || m.email)
+              .split(' ')
+              .map((n) => n[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2);
+
+            return (
+              <div
+                key={m.id}
+                className="glass-card card-highlight rounded-2xl p-5 border border-border/50 hover-lift group relative overflow-hidden flex flex-col gap-4"
+              >
+                {/* Glow orb */}
+                <div
+                  className="pointer-events-none absolute -right-8 -top-8 h-24 w-24 rounded-full opacity-0 blur-2xl transition-opacity duration-500 group-hover:opacity-100"
+                  style={{ backgroundColor: m.role === 'super_admin' ? '#6366f120' : '#3b82f620' }}
+                />
+
+                {/* Header: avatar + name + role badge */}
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="relative shrink-0">
+                      <div className="h-11 w-11 rounded-2xl bg-primary/10 text-primary flex items-center justify-center text-sm font-bold ring-2 ring-border/50">
+                        {initials}
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant={m.role === 'super_admin' ? 'default' : 'secondary'}
-                        className="font-medium"
+                      {/* Active indicator dot */}
+                      <div
+                        className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 border-card ${
+                          m.is_active ? 'bg-emerald-500' : 'bg-muted-foreground/30'
+                        }`}
+                      />
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-bold text-sm truncate">{m.full_name || 'Admin User'}</p>
+                        {isSelf && (
+                          <Badge variant="outline" className="text-[9px] py-0 px-1.5 shrink-0">
+                            You
+                          </Badge>
+                        )}
+                        {m.role === 'super_admin' && (
+                          <Crown className="h-3.5 w-3.5 text-amber-500 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-muted-foreground truncate mt-0.5">{m.email}</p>
+                    </div>
+                  </div>
+
+                  {/* Action menu using dropdown */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 w-8 p-0 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
                       >
-                        {ROLE_LABELS[m.role] ?? m.role}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <button
-                        role="switch"
-                        aria-checked={m.is_active}
-                        aria-label={`Toggle access for ${m.full_name || m.email}`}
+                        <MoreVertical className="h-4 w-4" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-48 glass-card rounded-xl p-1">
+                      <DropdownMenuItem
+                        onClick={() => {
+                          setEditingMember(m);
+                          setSelectedRole(m.role);
+                          setRoleModalOpen(true);
+                        }}
+                        className="cursor-pointer rounded-lg text-xs"
+                      >
+                        <ShieldCheck className="mr-2 h-3.5 w-3.5" /> Change Role
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
                         onClick={() => {
                           if (isSelf) {
-                            toast({ title: 'Restricted', description: 'You cannot deactivate your own account', variant: 'destructive' });
+                            toast({ title: 'Restricted', description: 'Cannot deactivate yourself', variant: 'destructive' });
                             return;
                           }
                           setToggleActiveId(m.id);
                           setToggleActiveState(!m.is_active);
                           setToggleActiveName(m.full_name || m.email);
                         }}
-                        disabled={isPending || isSelf}
-                        className={`w-10 h-5 rounded-full transition-colors relative focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary ${
-                          isSelf ? 'opacity-60 cursor-not-allowed' : ''
-                        } ${m.is_active ? 'bg-emerald-500' : 'bg-muted'}`}
-                        title={isSelf ? 'Cannot deactivate yourself' : m.is_active ? 'Click to deactivate' : 'Click to activate'}
+                        className="cursor-pointer rounded-lg text-xs"
+                        disabled={isSelf}
                       >
-                        <span
-                          className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                            m.is_active ? 'translate-x-5' : 'translate-x-0.5'
-                          }`}
-                        />
-                      </button>
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {m.last_sign_in_at ? formatDate(m.last_sign_in_at) : 'Never logged in'}
-                    </TableCell>
-                    <TableCell className="text-sm text-muted-foreground">
-                      {formatDate(m.created_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-8 w-8 p-0"
-                          onClick={() => {
-                            setEditingMember(m);
-                            setSelectedRole(m.role);
-                            setRoleModalOpen(true);
-                          }}
-                          title="Change role"
-                          aria-label={`Change role for ${m.full_name || m.email}`}
-                        >
-                          <ShieldCheck className="h-4 w-4" />
-                        </Button>
-                        {!isSelf && (
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-8 w-8 p-0 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        {m.is_active ? (
+                          <UserX className="mr-2 h-3.5 w-3.5" />
+                        ) : (
+                          <UserCheck className="mr-2 h-3.5 w-3.5" />
+                        )}
+                        {m.is_active ? 'Deactivate' : 'Activate'}
+                      </DropdownMenuItem>
+                      {!isSelf && (
+                        <>
+                          <DropdownMenuSeparator />
+                          <DropdownMenuItem
                             onClick={() => {
                               setRemoveId(m.id);
                               setRemoveName(m.full_name || m.email);
                             }}
-                            title="Remove admin access"
-                            aria-label={`Remove access for ${m.full_name || m.email}`}
+                            className="cursor-pointer rounded-lg text-xs text-destructive focus:text-destructive"
                           >
-                            <Trash2 className="h-3.5 w-3.5" />
-                          </Button>
-                        )}
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
-            )}
-          </TableBody>
-        </Table>
-      </div>
+                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Remove Access
+                          </DropdownMenuItem>
+                        </>
+                      )}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Role + Status badges */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Badge
+                    variant={m.role === 'super_admin' ? 'default' : 'secondary'}
+                    className="text-xs font-medium"
+                  >
+                    {ROLE_LABELS[m.role] ?? m.role}
+                  </Badge>
+                  <span
+                    className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-semibold border ${
+                      m.is_active
+                        ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
+                        : 'bg-muted text-muted-foreground border-border'
+                    }`}
+                  >
+                    <span
+                      className={`h-1.5 w-1.5 rounded-full ${
+                        m.is_active ? 'bg-emerald-500' : 'bg-muted-foreground/40'
+                      }`}
+                    />
+                    {m.is_active ? 'Active' : 'Inactive'}
+                  </span>
+                </div>
+
+                {/* Footer: last active + member since */}
+                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-border/40">
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                      Last Active
+                    </p>
+                    <p className="text-xs text-foreground font-medium">
+                      {m.last_sign_in_at ? formatDate(m.last_sign_in_at) : 'Never'}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-0.5">
+                      Member Since
+                    </p>
+                    <p className="text-xs text-foreground font-medium">{formatDate(m.created_at)}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Invite Admin Dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
@@ -451,6 +506,7 @@ export function TeamManagementPanel({ members, currentAdminId }: Props) {
         variant="destructive"
         onConfirm={handleRemoveConfirm}
       />
-    </>
+    </div>
   );
 }
+

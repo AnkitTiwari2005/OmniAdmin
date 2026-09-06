@@ -140,3 +140,51 @@
   background-size: 1000px 100%;
   animation: shimmer 2s infinite linear;
 }
+
+@keyframes shimmer {
+  0%   { background-position: -1000px 0; }
+  100% { background-position: 1000px 0; }
+}
+
+/* ── Extra global utilities ──────────────────────────────────── */
+@layer utilities {
+  .text-gradient-emerald {
+    background: linear-gradient(135deg, #10b981, #34d399);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-sky {
+    background: linear-gradient(135deg, #0ea5e9, #38bdf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-indigo {
+    background: linear-gradient(135deg, #6366f1, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-amber {
+    background: linear-gradient(135deg, #f59e0b, #fbbf24);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* Staggered fade-in for list items */
+  .stagger-1 { animation-delay: 50ms; }
+  .stagger-2 { animation-delay: 100ms; }
+  .stagger-3 { animation-delay: 150ms; }
+  .stagger-4 { animation-delay: 200ms; }
+}
+
+/* ── Login page mesh gradient ─────────────────────────────────── */
+.login-mesh {
+  background:
+    radial-gradient(ellipse at 20% 50%, rgba(99, 102, 241, 0.15) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 20%, rgba(16, 185, 129, 0.1) 0%, transparent 40%),
+    radial-gradient(ellipse at 60% 80%, rgba(14, 165, 233, 0.08) 0%, transparent 40%),
+    linear-gradient(135deg, #0f172a 0%, #1e1b4b 50%, #0f172a 100%);
+}

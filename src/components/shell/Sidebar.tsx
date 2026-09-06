@@ -45,6 +45,7 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
   });
 
   const availableWorkspaces = WORKSPACES.filter((w) => allowedWorkspaces.includes(w.slug));
+  const WorkspaceIcon = workspace.icon;
 
   return (
     <aside
@@ -53,13 +54,25 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
         collapsed ? 'w-16' : 'w-64'
       )}
     >
-      {/* Workspace switcher */}
-      <div className="p-3">
-        <WorkspaceSwitcher
-          currentSlug={workspace.slug as DashboardWorkspaceSlug}
-          collapsed={collapsed}
-          allowedWorkspaces={allowedWorkspaces}
-        />
+      {/* Logo / Workspace switcher */}
+      <div className={cn('p-3', collapsed ? 'flex justify-center' : '')}>
+        {collapsed ? (
+          /* Collapsed: show a clean branded icon pill — no dropdown confusion */
+          <div
+            className="h-10 w-10 flex items-center justify-center rounded-xl shadow-sm transition-all duration-200 hover:opacity-90 hover:scale-105"
+            style={{ backgroundColor: workspace.accentHex }}
+            title={workspace.name}
+            aria-label={workspace.name}
+          >
+            <WorkspaceIcon className="h-5 w-5 text-white" />
+          </div>
+        ) : (
+          <WorkspaceSwitcher
+            currentSlug={workspace.slug as DashboardWorkspaceSlug}
+            collapsed={false}
+            allowedWorkspaces={allowedWorkspaces}
+          />
+        )}
       </div>
 
       <Separator className="bg-border/50" />
@@ -104,12 +117,15 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
       </ScrollArea>
 
       {/* Collapse toggle */}
-      <div className="border-t p-3">
+      <div className="border-t border-border/50 p-3">
         <Button
           variant="ghost"
           size="sm"
           onClick={() => setCollapsed(!collapsed)}
-          className={cn('w-full justify-center text-muted-foreground', collapsed && 'px-0')}
+          className={cn(
+            'w-full transition-all duration-200 text-muted-foreground hover:text-foreground hover:bg-muted/60',
+            collapsed ? 'justify-center px-0 h-9 w-9 mx-auto' : 'justify-start gap-2'
+          )}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -117,8 +133,8 @@ export function Sidebar({ workspaceSlug, adminRole, allowedWorkspaces }: Sidebar
             <ChevronRight className="h-4 w-4" />
           ) : (
             <>
-              <ChevronLeft className="h-4 w-4 mr-2" />
-              <span className="text-xs">Collapse</span>
+              <ChevronLeft className="h-4 w-4" />
+              <span className="text-xs font-medium">Collapse</span>
             </>
           )}
         </Button>
