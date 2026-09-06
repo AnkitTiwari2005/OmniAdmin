@@ -5,6 +5,7 @@ import { requireSuperAdmin } from '@/lib/auth';
 import type { AdminRole } from '@/lib/auth';
 import type { TeamMember } from './types';
 import { revalidatePath } from 'next/cache';
+import { headers } from 'next/headers';
 import { logAdminActivity } from '@/lib/audit';
 import {
   teamMemberInviteSchema,
@@ -62,10 +63,16 @@ export async function inviteAdminMember(input: {
   const currentAdmin = await requireSuperAdmin();
   const service = createAdminServiceClient();
 
-  // 1. Send invite via Supabase Auth
+  const headerList = await headers();
+  const host = headerList.get('host');
+  const proto = headerList.get('x-forwarded-proto') || (host?.includes('localhost') ? 'http' : 'https');
+  const origin = host ? `${proto}://${host}` : 'https://omni-admin-dashboard.vercel.app';
+
+  // 1. Send invite via Supabase Auth with explicit redirect to reset-password
   const { data: inviteData, error: inviteError } = await service.auth.admin.inviteUserByEmail(
     valid.email,
     {
+      redirectTo: `${origin}/reset-password`,
       data: { full_name: valid.full_name },
     }
   );
