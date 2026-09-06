@@ -80,7 +80,7 @@ export async function inviteAdminMember(input: {
 
   const newUserId = inviteData.user.id;
 
-  // 2. Insert into admin_profiles
+  // 2. Insert into admin_profiles (schema: id, full_name, role, is_active)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error: profileError } = await (service as any)
     .from('admin_profiles')
@@ -88,32 +88,13 @@ export async function inviteAdminMember(input: {
       id: newUserId,
       full_name: valid.full_name,
       role: valid.role,
-      email: valid.email,
       is_active: true,
     });
 
   if (profileError) {
-    // Check if error is specifically missing column (Postgres error 42703: undefined_column)
-    if (profileError.code === '42703') {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const { error: retryError } = await (service as any)
-        .from('admin_profiles')
-        .insert({
-          id: newUserId,
-          full_name: valid.full_name,
-          role: valid.role,
-        });
-
-      if (retryError) {
-        // Rollback orphaned auth user
-        await service.auth.admin.deleteUser(newUserId);
-        return { error: retryError.message };
-      }
-    } else {
-      // For any other failure (constraint, duplicate, permission), rollback orphaned auth user
-      await service.auth.admin.deleteUser(newUserId);
-      return { error: profileError.message };
-    }
+    // Rollback orphaned auth user
+    await service.auth.admin.deleteUser(newUserId);
+    return { error: profileError.message };
   }
 
   // 3. Log activity
