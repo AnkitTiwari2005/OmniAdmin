@@ -102,6 +102,35 @@ export interface HouserveTechnician {
   is_active?: boolean;
   active_bookings?: number;
   created_at?: string;
+  // HandyMan Technician Profile & KYC fields
+  skills?: string[];
+  experience_years?: number;
+  id_type?: string | null;
+  id_number?: string | null;
+  id_document_url?: string | null;
+  verification_status?: 'pending' | 'approved' | 'rejected';
+  rejection_reason?: string | null;
+  is_online?: boolean;
+  wallet_balance?: number;
+  bank_upi_id?: string | null;
+  total_completed_jobs?: number;
+  rating?: number;
+}
+
+export interface HouserveTechnicianPayout {
+  id: string;
+  technician_id: string;
+  booking_id: string | null;
+  type: 'job_payout' | 'withdrawal' | 'adjustment' | 'bonus';
+  amount: number;
+  status: 'pending' | 'paid' | 'cancelled';
+  notes: string | null;
+  created_at: string;
+  technician?: {
+    full_name: string | null;
+    phone: string | null;
+    bank_upi_id: string | null;
+  } | null;
 }
 
 export interface HouserveCustomer {

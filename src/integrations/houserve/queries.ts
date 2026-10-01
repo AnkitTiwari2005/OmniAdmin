@@ -206,17 +206,48 @@ export async function getHouservePromotions(): Promise<import('./types').Houserv
 
 export async function getHouserveTechnicians(): Promise<HouserveTechnician[]> {
   const db = getHouserveClient();
-  const { data, error } = await db
-    .from('profiles')
-    .select('id, full_name, email, phone, avatar_url, created_at, role')
-    .in('role', ['technician', 'technician_inactive'])
-    .order('full_name', { ascending: true });
-  if (error) throw error;
 
-  // Count active bookings per technician
-  const techIds = (data ?? []).map((t) => (t as Record<string, unknown>).id as string);
+  // 1. Fetch profiles and technician_profiles in parallel
+  const [profilesRes, techProfilesRes] = await Promise.all([
+    db.from('profiles')
+      .select('id, full_name, email, phone, avatar_url, created_at, role')
+      .in('role', ['technician', 'technician_inactive'])
+      .order('full_name', { ascending: true }),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).from('technician_profiles')
+      .select('*')
+  ]);
+
+  if (profilesRes.error) throw profilesRes.error;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const profiles = (profilesRes.data ?? []) as any[];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const techProfiles = (techProfilesRes.data ?? []) as any[];
+
+  // Map technician_profiles by id
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const techMap = new Map<string, any>();
+  techProfiles.forEach((tp) => techMap.set(tp.id, tp));
+
+  // Also include any technician_profiles whose profile role is still transitioning
+  const existingIds = new Set(profiles.map((p) => p.id));
+  const missingIds = techProfiles.map((tp) => tp.id).filter((id) => !existingIds.has(id));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let extraProfiles: any[] = [];
+  if (missingIds.length > 0) {
+    const { data: extras } = await db
+      .from('profiles')
+      .select('id, full_name, email, phone, avatar_url, created_at, role')
+      .in('id', missingIds);
+    extraProfiles = extras ?? [];
+  }
+
+  const allProfiles = [...profiles, ...extraProfiles];
+  const techIds = allProfiles.map((t) => t.id);
   if (techIds.length === 0) return [];
 
+  // 2. Count active bookings per technician
   const { data: activeBookings } = await db
     .from('bookings')
     .select('technician_id')
@@ -229,11 +260,69 @@ export async function getHouserveTechnicians(): Promise<HouserveTechnician[]> {
     if (tid) activeCountMap[tid] = (activeCountMap[tid] ?? 0) + 1;
   });
 
-  return ((data ?? []) as Array<Record<string, unknown>>).map((t) => ({
-    ...t,
-    is_active: t.is_active !== undefined ? Boolean(t.is_active) : t.role !== 'technician_inactive',
-    active_bookings: activeCountMap[t.id as string] ?? 0,
-  })) as HouserveTechnician[];
+  return allProfiles.map((p) => {
+    const tp = techMap.get(p.id);
+    return {
+      id: p.id,
+      full_name: p.full_name,
+      email: p.email,
+      phone: p.phone,
+      avatar_url: p.avatar_url,
+      role: p.role,
+      created_at: p.created_at,
+      is_active: p.role !== 'technician_inactive',
+      active_bookings: activeCountMap[p.id] ?? 0,
+      skills: tp?.skills ?? [],
+      experience_years: tp?.experience_years ?? 0,
+      id_type: tp?.id_type ?? null,
+      id_number: tp?.id_number ?? null,
+      id_document_url: tp?.id_document_url ?? null,
+      verification_status: tp?.verification_status ?? (p.role === 'technician' ? 'approved' : 'pending'),
+      rejection_reason: tp?.rejection_reason ?? null,
+      is_online: Boolean(tp?.is_online),
+      wallet_balance: Number(tp?.wallet_balance ?? 0),
+      bank_upi_id: tp?.bank_upi_id ?? null,
+      total_completed_jobs: tp?.total_completed_jobs ?? 0,
+      rating: Number(tp?.rating ?? 5),
+    };
+  }) as HouserveTechnician[];
+}
+
+export async function getHouservePayouts(): Promise<import('./types').HouserveTechnicianPayout[]> {
+  const db = getHouserveClient();
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const { data, error } = await (db as any)
+    .from('technician_payouts')
+    .select('id, technician_id, booking_id, type, amount, status, notes, created_at')
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  if (error || !data) return [];
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const techIds = Array.from(new Set(data.map((p: any) => p.technician_id))) as string[];
+  if (techIds.length === 0) return [];
+
+  const [{ data: techData }, { data: techProfiles }] = await Promise.all([
+    db.from('profiles').select('id, full_name, phone').in('id', techIds),
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (db as any).from('technician_profiles').select('id, bank_upi_id').in('id', techIds),
+  ]);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const nameMap = Object.fromEntries(((techData ?? []) as any[]).map((t) => [t.id, t]));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const upiMap = Object.fromEntries(((techProfiles ?? []) as any[]).map((t) => [t.id, t.bank_upi_id]));
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return data.map((p: any) => ({
+    ...p,
+    technician: {
+      full_name: nameMap[p.technician_id]?.full_name ?? 'Technician',
+      phone: nameMap[p.technician_id]?.phone ?? null,
+      bank_upi_id: upiMap[p.technician_id] ?? null,
+    },
+  })) as import('./types').HouserveTechnicianPayout[];
 }
 
 export async function getHouservePromotableCustomers(

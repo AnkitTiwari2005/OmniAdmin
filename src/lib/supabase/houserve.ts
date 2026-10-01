@@ -16,7 +16,7 @@ export type HouserveDB = {
       phone: string | null;
       avatar_url: string | null;
       /** display only — NOT used for admin-app auth */
-      role: 'customer' | 'technician' | 'admin';
+      role: 'customer' | 'technician' | 'technician_inactive' | 'admin' | string;
       created_at: string;
       updated_at: string;
     };
@@ -138,6 +138,50 @@ export type HouserveDB = {
     };
     Insert: Omit<HouserveDB['promotions']['Row'], 'id' | 'created_at'>;
     Update: Partial<HouserveDB['promotions']['Insert']>;
+  };
+  technician_profiles: {
+    Row: {
+      id: string;
+      skills: string[];
+      experience_years: number;
+      id_type: string | null;
+      id_number: string | null;
+      id_document_url: string | null;
+      verification_status: 'pending' | 'approved' | 'rejected';
+      rejection_reason: string | null;
+      is_online: boolean;
+      current_latitude: number | null;
+      current_longitude: number | null;
+      service_radius_km: number;
+      pincodes_served: string[];
+      bank_account_name: string | null;
+      bank_account_number: string | null;
+      bank_ifsc: string | null;
+      bank_upi_id: string | null;
+      wallet_balance: number;
+      total_completed_jobs: number;
+      rating: number;
+      total_ratings_count: number;
+      created_at: string;
+      updated_at: string;
+    };
+    Insert: Partial<HouserveDB['technician_profiles']['Row']>;
+    Update: Partial<HouserveDB['technician_profiles']['Row']>;
+  };
+  technician_payouts: {
+    Row: {
+      id: string;
+      technician_id: string;
+      booking_id: string | null;
+      type: 'job_payout' | 'withdrawal' | 'adjustment' | 'bonus';
+      amount: number;
+      status: 'pending' | 'paid' | 'cancelled';
+      notes: string | null;
+      created_at: string;
+      updated_at: string;
+    };
+    Insert: Omit<HouserveDB['technician_payouts']['Row'], 'id' | 'created_at' | 'updated_at'>;
+    Update: Partial<HouserveDB['technician_payouts']['Row']>;
   };
 };
 

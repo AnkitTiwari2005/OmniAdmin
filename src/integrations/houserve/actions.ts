@@ -535,3 +535,146 @@ export async function createTechnician(input: {
   return { success: true, id: userId };
 }
 
+// ── HandyMan Partner App KYC & Payout actions ─────────────────
+
+export async function approveTechnicianKyc(technicianId: string) {
+  const parsed = uuidSchema.safeParse(technicianId);
+  if (!parsed.success) return { error: 'Invalid technician ID' };
+
+  const { db, admin } = await requireHouserve();
+
+  const { error: techErr } = await table(db, 'technician_profiles')
+    .upsert({
+      id: technicianId,
+      verification_status: 'approved',
+      rejection_reason: null,
+      updated_at: new Date().toISOString(),
+    });
+  if (techErr) return { error: techErr.message };
+
+  await table(db, 'profiles')
+    .update({ role: 'technician', is_active: true, updated_at: new Date().toISOString() })
+    .eq('id', technicianId);
+
+  // Send in-app notification to HandyMan partner app
+  await table(db, 'notifications').insert({
+    user_id: technicianId,
+    title: 'Partner Account Approved!',
+    body: 'Congratulations! Your profile has been approved by admin. You can now toggle online and start receiving customer requests.',
+    type: 'kyc',
+  });
+
+  await logAdminActivity({
+    adminId: admin.id,
+    adminEmail: admin.email,
+    adminName: admin.full_name,
+    action: 'status_change',
+    workspace: 'houserve',
+    targetTable: 'technician_profiles',
+    targetId: technicianId,
+    details: { verification_status: 'approved' },
+  });
+
+  revalidatePath('/houserve/technicians');
+  return { success: true };
+}
+
+export async function rejectTechnicianKyc(technicianId: string, reason: string) {
+  const parsed = uuidSchema.safeParse(technicianId);
+  if (!parsed.success) return { error: 'Invalid technician ID' };
+  if (!reason.trim()) return { error: 'Rejection reason is required' };
+
+  const { db, admin } = await requireHouserve();
+
+  const { error: techErr } = await table(db, 'technician_profiles')
+    .update({
+      verification_status: 'rejected',
+      rejection_reason: reason.trim(),
+      is_online: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', technicianId);
+  if (techErr) return { error: techErr.message };
+
+  await table(db, 'profiles')
+    .update({ role: 'technician_inactive', is_active: false, updated_at: new Date().toISOString() })
+    .eq('id', technicianId);
+
+  // Notify technician in HandyMan app with reason
+  await table(db, 'notifications').insert({
+    user_id: technicianId,
+    title: 'KYC Verification Needs Attention',
+    body: `Your verification could not be approved. Reason: ${reason.trim()}. Please update your documents in the app.`,
+    type: 'kyc',
+  });
+
+  await logAdminActivity({
+    adminId: admin.id,
+    adminEmail: admin.email,
+    adminName: admin.full_name,
+    action: 'status_change',
+    workspace: 'houserve',
+    targetTable: 'technician_profiles',
+    targetId: technicianId,
+    details: { verification_status: 'rejected', reason },
+  });
+
+  revalidatePath('/houserve/technicians');
+  return { success: true };
+}
+
+export async function getTechnicianDocumentUrl(path: string) {
+  const { db } = await requireHouserve();
+  const { data, error } = await db.storage
+    .from('kyc-documents')
+    .createSignedUrl(path, 3600);
+
+  if (error || !data?.signedUrl) {
+    const { data: pubData } = db.storage.from('kyc-documents').getPublicUrl(path);
+    return { url: pubData.publicUrl };
+  }
+  return { url: data.signedUrl };
+}
+
+export async function settleTechnicianPayout(payoutId: string) {
+  const parsed = uuidSchema.safeParse(payoutId);
+  if (!parsed.success) return { error: 'Invalid payout ID' };
+
+  const { db, admin } = await requireHouserve();
+  const { data: payout, error: fetchErr } = await table(db, 'technician_payouts')
+    .select('*')
+    .eq('id', payoutId)
+    .single();
+
+  if (fetchErr || !payout) return { error: 'Payout record not found' };
+
+  const { error } = await table(db, 'technician_payouts')
+    .update({ status: 'paid', updated_at: new Date().toISOString() })
+    .eq('id', payoutId);
+
+  if (error) return { error: error.message };
+
+  // Notify technician in HandyMan app
+  await table(db, 'notifications').insert({
+    user_id: payout.technician_id,
+    title: 'Withdrawal Processed',
+    body: `Your withdrawal of ₹${payout.amount} has been successfully settled to your UPI/bank account.`,
+    type: 'payout',
+  });
+
+  await logAdminActivity({
+    adminId: admin.id,
+    adminEmail: admin.email,
+    adminName: admin.full_name,
+    action: 'status_change',
+    workspace: 'houserve',
+    targetTable: 'technician_payouts',
+    targetId: payoutId,
+    details: { status: 'paid', amount: payout.amount },
+  });
+
+  revalidatePath('/houserve/technicians');
+  return { success: true };
+}
+
+

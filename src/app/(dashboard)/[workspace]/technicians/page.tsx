@@ -2,7 +2,7 @@ import { redirect, notFound } from 'next/navigation';
 import { requireWorkspaceAccess } from '@/lib/auth';
 import { getWorkspaceOrNull } from '@/lib/workspace';
 import { PageHeader } from '@/components/shell/PageHeader';
-import { getHouserveTechnicians, getHouservePromotableCustomers } from '@/integrations/houserve/queries';
+import { getHouserveTechnicians, getHouservePromotableCustomers, getHouservePayouts } from '@/integrations/houserve/queries';
 import { TechniciansPanel } from '@/components/houserve/TechniciansPanel';
 
 interface PageProps {
@@ -22,7 +22,7 @@ export default async function TechniciansPage({ params }: PageProps) {
     const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="Technicians" description="Houserve" />
+        <PageHeader title="Technicians & Field Partners" description="Houserve" />
         <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />
       </div>
     );
@@ -30,34 +30,37 @@ export default async function TechniciansPage({ params }: PageProps) {
 
   let technicians: import('@/integrations/houserve/types').HouserveTechnician[] = [];
   let promotableCustomers: Array<{ id: string; full_name: string | null; email: string | null; phone: string | null }> = [];
+  let payouts: import('@/integrations/houserve/types').HouserveTechnicianPayout[] = [];
 
   try {
-    [technicians, promotableCustomers] = await Promise.all([
+    [technicians, promotableCustomers, payouts] = await Promise.all([
       getHouserveTechnicians(),
       getHouservePromotableCustomers(),
+      getHouservePayouts(),
     ]);
   } catch {
     const { NotConfiguredCard } = await import('@/components/shell/NotConfiguredCard');
     return (
       <div className="flex flex-col gap-6 p-6">
-        <PageHeader title="Technicians" description="Houserve" />
+        <PageHeader title="Technicians & Field Partners" description="Houserve" />
         <NotConfiguredCard workspaceName="Houserve" envKey="HOUSERVE_SUPABASE_SERVICE_ROLE_KEY" />
       </div>
     );
   }
 
-  const busyCount = technicians.filter((t) => (t.active_bookings ?? 0) > 0).length;
-  const activeCount = technicians.filter((t) => t.is_active !== false).length;
+  const pendingKycCount = technicians.filter((t) => t.verification_status === 'pending').length;
+  const pendingPayoutCount = payouts.filter((p) => p.status === 'pending').length;
 
   return (
     <div className="flex flex-col gap-6 p-6">
       <PageHeader
-        title="Technicians"
-        description={`${technicians.length} registered · ${activeCount} active · ${busyCount} currently on job`}
+        title="Technicians & Field Partners"
+        description={`${technicians.length} registered · ${pendingKycCount} pending KYC · ${pendingPayoutCount} pending payouts`}
       />
       <TechniciansPanel
         technicians={technicians}
         promotableCustomers={promotableCustomers}
+        payouts={payouts}
       />
     </div>
   );
