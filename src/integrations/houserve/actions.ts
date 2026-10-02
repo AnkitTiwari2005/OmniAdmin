@@ -67,10 +67,48 @@ export async function assignTechnicianToBooking(bookingId: string, technicianId:
   }
 
   const { db, admin } = await requireHouserve();
+
+  // 1. Fetch booking details to include in notifications
+  const { data: bookingData } = await table(db, 'bookings')
+    .select('booking_ref, customer_id, services(name)')
+    .eq('id', bookingId)
+    .single();
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const serviceName = (bookingData?.services as any)?.name || 'Service';
+  const ref = bookingData?.booking_ref || bookingId.slice(0, 8);
+
+  // 2. Update booking
   const { error } = await table(db, 'bookings')
     .update({ technician_id: technicianId, status: 'assigned', updated_at: new Date().toISOString() })
     .eq('id', bookingId);
   if (error) return { error: error.message };
+
+  // 3. Send in-app notification to technician in HandyMan app
+  await table(db, 'notifications').insert({
+    user_id: technicianId,
+    title: 'New Job Assigned!',
+    body: `You have been assigned booking #${ref} (${serviceName}). Open the app to view location and start travel.`,
+    type: 'booking',
+    booking_id: bookingId,
+  });
+
+  // 4. Notify customer that technician has been assigned
+  if (bookingData?.customer_id) {
+    const { data: techProfile } = await table(db, 'profiles')
+      .select('full_name')
+      .eq('id', technicianId)
+      .single();
+
+    const techName = techProfile?.full_name || 'A partner technician';
+    await table(db, 'notifications').insert({
+      user_id: bookingData.customer_id,
+      title: 'Technician Assigned',
+      body: `${techName} has been assigned to your booking #${ref}.`,
+      type: 'booking',
+      booking_id: bookingId,
+    });
+  }
 
   await logAdminActivity({
     adminId: admin.id,
@@ -80,7 +118,7 @@ export async function assignTechnicianToBooking(bookingId: string, technicianId:
     workspace: 'houserve',
     targetTable: 'bookings',
     targetId: bookingId,
-    details: { assignedTechnicianId: technicianId },
+    details: { assignedTechnicianId: technicianId, bookingRef: ref },
   });
 
   revalidatePath('/houserve/bookings');
